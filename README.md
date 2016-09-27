@@ -1,6 +1,6 @@
 BY USING THIS SOFTWARE, YOU EXPRESSLY ACCEPT AND AGREE TO THE TERMS OF THE AGREEMENT CONTAINED IN THIS GITHUB REPOSITORY.  See the file EULA.md for details.
 
-#  An Example Application for Processing Stock Market (NYSE) Data on the MapR Converged Data Platform
+#  An Example Application for Processing Stock Market Trade Data on the MapR Converged Data Platform
 
 This project provides a processing engine for ingesting real time streams of trades, bids and asks into MapR Streams at a high rate.  The application consists of the following components:
 - A Producer microservice that streams trades, bids and asks using the NYSE TAQ format.  The data source is the Daily Trades dataset described [here](http://www.nyxdata.com/Data-Products/Daily-TAQ). The schema for our data is detailed in Table 6, "Daily Trades File Data Fields", on page 26 of [Daily TAQ Client Specification (from December 1st, 2013)](http://www.nyxdata.com/doc/212759).  
@@ -15,10 +15,11 @@ The intent of the application is to serve as a "blueprint" for building high-spe
 There are several beneficial aspects of the application that are worth highlighting:
 
 - The Consumer microservice, performing the indexing, can be arbitrarily scaled simply by running more instances.  See below in this README for how to start the application.
+- Jackson annotations are provided for easy translation of the data structures to JSON and persistence to MapR-DB.
 - The application can handle 300,000 entries/second on a 3-node cluster, which is suitable for testing.  It does not require a large cluster, and takes advantage of the scaling properties of MapR Streams.
 - The resulting index topics are small, and can be queried fast enough such that they can be used for interactive dashboards, such as in a Zeppelin notebook.
 
-## Pre-requisites
+## Prerequisites
 
 To get the application running you will need a cluster or single node with MapR 5.1 or greater.  You can use the free [Converged Community Edition](http://mapr.com/download) or the [Converged Enterprise Edition](https://www.mapr.com/products/mapr-distribution-editions).  The example will also run on the [MapR Sandbox](http://mapr.com/sandbox).  Optionally, you will need python 2.7 to run the data generation script.  Some performance tests that use R are also provided (see the section below about Testing Speeds for Different Configurations).
 
@@ -132,6 +133,27 @@ java -cp ./target/nyse-taq-streaming-1.0.jar:./src/test/resources com.mapr.demo.
 
 In this example we are starting 3 threads to handle the 3 partitions and specified the topic name as ```/user/mapr/taq::trades```.
 
+### Step 5:  Starting Other Consumers 
+
+The class ```Persister.java``` is provided as a code example to help you get familiar with the MapR-DB and OJAI APIs, and persists data to MapR-DB that it consumes a topic.  You can run this class with the following command line:
+
+```
+java -cp target/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0110
+```
+This causes trades, bids and asks sent by sender ID ```0110``` to be persisted to MapR-DB.
+
+For querying the indexed data, we have provided a ```SparkStreamingToHive``` class that builds tables that can be queried with Spark SQL.  Run this class as follows:
+
+```
+/opt/mapr/spark/spark-1.6.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive ./target/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410 ticks_from_0410'
+```
+This causes a queryable table (which can be queried from i.e. a Zeppelin notebook) to be created for sender with ID ```0410```.
+
+A class that simply prints the streaming messages to the console is also provided, and can be run as follows:
+```
+/opt/mapr/spark/spark-1.6.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingConsole ./target/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410
+```
+
 ### Monitoring your topics 
 
 You can use the `maprcli` tool to get some information about the topic, for example:
@@ -177,6 +199,34 @@ Remove the Hive table:
 ```
 $ rm -rf /mapr/ian.cluster.com/user/hive/warehouse/streaming_ticks/
 ```
+
+### Generating Data
+
+The source data files are kept in a separate repo to keep this one to a manageable size.  To get more data, perform the following steps.  You can either use the larger starting set of data files provided here, or run the provided script ```prepticks.py``` to generate more from scratch.  This will take the NYSE TAQ file as input and generate simulated bids and asks leading up to each trade, at a pre-defined rate per second.
+
+First, download the data repo:
+
+```
+git clone https://github.com/mapr-demos/finserv-data-files
+```
+
+Expand the starter data files as follows:
+
+```
+cd finserv-data-files
+mkdir data
+tar xvfz starter_datafiles.tar.gz -C data
+```
+
+You can then pass this ```data``` directory to the consumer application above.
+
+If you want to generate even more data (for example, to simulate an entire trading day) then run ```prepticks.py``` to generate it using the NYSE TAQ files.  First combine them:
+
+```
+cat taq/* >> data.zip
+unzip data.zip
+```
+Now, go back to this repo and edit the file ```prepticks.py``` to point to the file you just unzipped and the output directory.  This will generate data for all events in the TAQ file.  A machine with 128G RAM is recommended for generating data.
 
 # Performance Guidelines
 
