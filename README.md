@@ -131,7 +131,7 @@ Run the following command to start the consumer:
 java -cp ./target/nyse-taq-streaming-1.0.jar:./src/test/resources com.mapr.demo.finserv.Run consumer /user/mapr/taq:trades 3
 ```
 
-In this example we are starting 3 threads to handle the 3 partitions and specified the topic name as ```/user/mapr/taq::trades```.
+In this example we are starting 3 threads to handle the 3 partitions in topic, ```/user/mapr/taq:trades```.
 
 ### Step 5:  Starting Other Consumers 
 
@@ -163,22 +163,19 @@ $ maprcli stream info -path /user/mapr/taq -json
 $ maprcli stream topic info -path /user/mapr/taq -topic trades -json
 ```
 
-If the MapR-FS filesystem runs out of free space, the kafka producers will fail, so keep an eye on disk space like this:
+If the cluster filesystem runs out of free space then the kafka producers will fail. If that happens, you can easily start over by removing the stream and creating it again (see above). You can keep an eye on disk space with a command like this (replace "nodea" with your node's hostname):
 
 ```
-$ maprcli disk list -host iannodea
+$ maprcli disk list -host nodea
 ```
 
-If the disk space fills up, it's easiest just to remove the stream then create it again.
-
-
-Show me all the topics for my stream:
+Here's how to show all the topics for a stream:
 
 ```
 $ maprcli stream topic list -path /user/mapr/taq | awk '{print $4}' | sort | uniq -c
 ```
 
-Show me the depth of the trades topic:
+Here's how to show the number of messages contained in a topic:
 
 ```
 $ maprcli stream topic info -path /user/mapr/taq -topic trades | tail -n 1 | awk '{print $12-$2}'
