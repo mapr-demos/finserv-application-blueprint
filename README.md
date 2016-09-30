@@ -186,7 +186,7 @@ $ maprcli stream topic info -path /user/mapr/taq -topic trades | tail -n 1 | awk
 When you are done, you can delete the stream, and all associated topic using the following command:
 
 ```
-$ maprcli stream delete -path /taq
+$ maprcli stream delete -path /user/mapr/taq
 ```
 
 Don't forget to recreate the stream before running the producer again.
