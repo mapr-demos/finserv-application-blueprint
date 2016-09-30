@@ -30,7 +30,7 @@ public class ThreadCountSpeedIT {
 	@BeforeClass
 	public static void openDataFile() throws FileNotFoundException {
 		data = new PrintWriter(new File("thread-count.csv"));
-		data.printf("threadCount, topicCount, messageSize, i, t, rate, dt, batchRate\n");
+		data.printf("threadCount, topicCount, i, t, rate, dt, batchRate\n");
 	}
 
 	@AfterClass
