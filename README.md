@@ -181,6 +181,71 @@ Here's how to show the number of messages contained in a topic:
 $ maprcli stream topic info -path /user/mapr/taq -topic trades | tail -n 1 | awk '{print $12-$2}'
 ```
 
+
+### Building a Dashboard
+
+There are many frameworks we could use here to build an operational dashboard.  [Apache Zeppelin](https://zeppelin.apache.org/) is a good choice because we can build the dashboard with a variety of ways of attaching to the data.
+
+<img src = "images/zepdash.png" width=200px>
+
+Follow the steps in this section to build a dashboard with SQL queries into the tables we built in previous sections.
+
+This example requires the following software:
+* MapR 5.1 or greater (including Spark)
+* Zeppelin 0.7-SNAPSHOT or greater
+
+For testing purposes, we suggest running Zeppelin on either one of the MapR cluster nodes, or in a client node with the ```mapr-client``` package installed.
+
+#### Configuring Zeppelin
+
+To build our dashboard, we'll use the ```%sql``` directive to query Spark SQL.  Ensure that the Zeppelin Spark interpeter is configured with options similar to the following (change paths such as ```zeppelin.interpreter.localRepo``` to suit your environment):
+
+```
+master	yarn-client
+spark.app.name	Zeppelin
+spark.executor.memory	2g
+zeppelin.dep.additionalRemoteRepository	spark-packages,http://dl.bintray.com/spark-packages/maven,false;
+zeppelin.dep.localrepo	local-repo
+zeppelin.interpreter.localRepo	/home/mapr/zeppelin-0.7.0-SNAPSHOT/local-repo/2BX9VZF48
+zeppelin.pyspark.python	python
+zeppelin.spark.concurrentSQL	false
+zeppelin.spark.importImplicit	true
+zeppelin.spark.maxResult	1000
+zeppelin.spark.printREPLOutput	true
+zeppelin.spark.sql.stacktrace	true
+zeppelin.spark.useHiveContext	true
+```
+
+#### Building Visualizations
+
+After installing Zeppelin and connecting to the web interface, let's first look at the available tables in Spark SQL.
+
+Create a new notebook.  Zeppelin divides the Notebook into subsections called *paragraphs*.  In a new Zeppelin paragraph, enter the following and press the 'Play' icon:
+
+```
+%sql show tables
+```
+
+You should see a table called ```streaming_ticks``` in the list.  If not, consult the previous section *Starting Other Consumers* to build the table.
+
+Next replace this ```%sql``` entry with the following query, which will build a summary table:
+
+```
+%sql SELECT sum(price*volume) TradingValue, streaming_ticks.sender senderID FROM streaming_ticks group by sender
+```
+
+You should now see a table summarizing trading volume by sender ID.  You can also try these other queries:
+
+```
+%sql SELECT sender, symbol, count(1) num_trades FROM streaming_ticks where symbol ="AA" group by sender, symbol order by sender
+```
+
+```
+%sql SELECT price, volume, count(1) value FROM streaming_ticks where sender = "1361" group by price, volume, sender order by price %sql select count(*) from streaming_ticks
+```
+
+Consult the file ```SparkStreamingToHive.java``` for a code example on how to persist data into this table.
+
 ## Cleaning Up
 
 When you are done, you can delete the stream, and all associated topic using the following command:
