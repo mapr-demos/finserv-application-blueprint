@@ -30,7 +30,7 @@ Clone this repo and build the application with Maven.  A pom.xml file is include
 ```
 git clone http://github.com/mapr-demos/finserv-application-blueprint
 cd finserv-application-blueprint
-mvn install clean
+mvn clean install
 ```
 At this point you should see the resulting jar file in the target/ directory:  ```nyse-taq-streaming-1.0.jar```
 
