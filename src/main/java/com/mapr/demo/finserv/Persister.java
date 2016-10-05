@@ -1,42 +1,54 @@
-/*
- * Copyright (c) 2009 & onwards. MapR Tech, Inc., All rights reserved
- * 
- * This class is provided as a teaching example to persist data into MapR-DB, and is not
- * run as part of the main demo.
- */
+/* Copyright (c) 2009 & onwards. MapR Tech, Inc., All rights reserved */
 package com.mapr.demo.finserv;
+
+/******************************************************************************
+ * PURPOSE:
+ *   This Kafka consumer reads NYSE Tick data from a MapR Stream topic and
+ *   persists each message in a MapR-DB table as a JSON Document, which can
+ *   later be queried using Apache Drill (for example).
+ *
+ * EXAMPLE USAGE:
+ *   java -cp ~/nyse-taq-streaming-1.0.jar:$CP com.mapr.demo.finserv.Persister /user/mapr/taq:sender_1361
+ *
+ * EXAMPLE QUERIES FOR MapR dbshell:
+ *      mapr dbshell
+ *          find /user/mapr/ticktable
+ *
+ * EXAMPLE QUERIES FOR APACHE DRILL:
+ *      /opt/mapr/drill/drill-1.6.0/bin/sqlline -u jdbc:drill:
+ *          SELECT * FROM dfs.`/mapr/ian.cluster.com/user/mapr/ticktable`;
+ *          SELECT * FROM dfs.`/user/mapr/ticktable`;
+ *
+ *****************************************************************************/
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.htrace.fasterxml.jackson.databind.ObjectMapper;
-import org.ojai.exceptions.DecodingException;
 import com.mapr.db.MapRDB;
 import com.mapr.db.Table;
 import org.ojai.Document;
 import org.ojai.DocumentStream;
 import org.ojai.store.QueryCondition;
-import java.util.*;
 
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Persister {
-
-	private static final Logger LOG = LoggerFactory.getLogger(Persister.class);
 
 	// Declare a new consumer.
 	private static KafkaConsumer consumer;
 
 	// every N rows print a MapR-DB update
-	private static final int U_INTERVAL = 100;
+	private static int U_INTERVAL = 100;
 
 	// polling
-	private static final int TIMEOUT = 1000;
+	private static int TIMEOUT = 1000;
+
 
 	public static void main(String[] args) throws IOException {
 		configureConsumer(args);
@@ -45,7 +57,7 @@ public class Persister {
 		// been processed
 		String topic = "/user/mapr/taq:processed";
 		String tableName = "/user/mapr/ticktable";
-		Set<String> syms = new HashSet<>();
+		Set<String> syms = new HashSet<String>();
 		long nmsgs = 0;
 		Table table;
 
@@ -53,11 +65,11 @@ public class Persister {
 			topic = args[0];
 		}
 
-		List<String> topics = new ArrayList<>();
+		List<String> topics = new ArrayList<String>();
 		topics.add(topic);
 
 		// subscribe to the raw data
-		System.out.println("subscribing to " + topic);
+		System.out.println("Subscribing to " + topic);
 		consumer.subscribe(topics);
 
 		// delete the old table if it's there
@@ -74,44 +86,37 @@ public class Persister {
 
 		// request everything
 		for (;;) {
-			// Request unread messages from the topic.
-			ConsumerRecords<String, byte[]> records;
-			records = consumer.poll(TIMEOUT);
-			if (records == null || records.count() == 0) {
-				System.out.println("The " + topic + "topic is currently empty, no records");
-				continue;
+			ConsumerRecords<String, byte[]> msg = consumer.poll(TIMEOUT);
+			if (msg.count() == 0) {
+				System.out.println("No messages after 1 second wait.");
+			} else {
+				System.out.println("Read " + msg.count() + " messages");
+				nmsgs += msg.count();
+
+				// Iterate through returned records, extract the value
+				// of each message, and print the value to standard output.
+				Iterator<ConsumerRecord<String, byte[]>> iter = msg.iterator();
+				while (iter.hasNext()) {
+					ConsumerRecord<String, byte[]> record = iter.next();
+
+					Tick tick = new Tick(record.value());
+					Document document = MapRDB.newDocument((Object)tick);
+
+					String this_sym = document.getString("symbol");
+					syms.add(this_sym);
+
+					// save document into the table
+					table.insertOrReplace(tick.getTradeSequenceNumber(), document);
+				}
 			}
-			try {
-				for (ConsumerRecord<String, byte[]> raw_record : records) {
-					String key = Long.toString(Calendar.getInstance(TimeZone.getTimeZone("GMT")).getTimeInMillis());
-                    byte[] data = raw_record.value();
 
-
-                    Tick writeTick = new Tick(data);
-                    syms.add(writeTick.getSymbolRoot());
-
-                    // This is just one way to do CRUD operations, for more examples, see:
-                    // http://maprdocs.mapr.com/home/MapR-DB/JSON_DB/creating_documents_with_maprdb_ojai_java_api_.html
-                    // https://github.com/mapr-demos/maprdb-ojai-101
-
-                    try {
-                        Document document = MapRDB.newDocument(new ObjectMapper().writeValueAsString(writeTick));
-                        table.insertOrReplace(writeTick.getTradeSequenceNumber(), document);
-                    } catch (DecodingException e) {
-                            System.err.println("decoding exception");
-                    }
-                    nmsgs++;
-			    }
-            } catch (StringIndexOutOfBoundsException e) {
-				System.err.println("Invalid record");
-			}
-			if ((nmsgs % U_INTERVAL) == 0) {
+			if ((msg.count() != 0) && (nmsgs % U_INTERVAL) == 0) {
 				System.out.println("Write update per-symbol:");
 				System.out.println("------------------------");
 
 				for (String s : syms) {
 					QueryCondition cond = MapRDB.newCondition()
-						.is("symbolRoot", QueryCondition.Op.EQUAL, s).build();
+							.is("symbol", QueryCondition.Op.EQUAL, s).build();
 					DocumentStream results = table.find(cond);
 					int c = 0;
 					for (Document d : results) {
@@ -121,16 +126,19 @@ public class Persister {
 				}
 			}
 		}
-    }
+	}
 
-	/*
-	 * cause consumers to start at beginning of topic on first read
-	 */
+	/* Set the value for configuration parameters.*/
 	private static void configureConsumer(String[] args) {
 		Properties props = new Properties();
+		// cause consumers to start at beginning of topic on first read
 		props.put("auto.offset.reset", "earliest");
-		props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-		props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-		consumer = new KafkaConsumer<>(props);
+		props.put("key.deserializer",
+				"org.apache.kafka.common.serialization.StringDeserializer");
+		//  which class to use to deserialize the value of each message
+		props.put("value.deserializer",
+				"org.apache.kafka.common.serialization.ByteArrayDeserializer");
+
+		consumer = new KafkaConsumer<String, String>(props);
 	}
 }
