@@ -115,9 +115,11 @@ Throughput = 478.99 Kmsgs/sec published. Threads = 1. Total published = 2406537.
 
 This simulates "live" bids, asks and trades streaming from an exchange.
 
-### Step 4. Start the Spark Consumer
+### Step 4. Start the "Fan Out" Consumer
 
-The consumer provides a multi-threaded microservice that indexes the incoming information into separate topics by receiver and sender.
+We use a multi-threaded microservice that indexes the incoming information into separate topics by receiver and sender. We call this a "fan out" consumer, because it consumes tick data from incoming NYSE stream and copies each tick record into topics belonging to all the participants of a trade. So for example, if this consumer sees an offer by Sender X to sell shares to recipients A, B, and C, then this consumer will copy that tick to four new topics, identified as sender_X, receiver_A, receiver_B, and receiver_C. This relationship is illustrated below:
+
+![Fanout_Relationship](https://github.com/mapr-demos/finserv-application-blueprint/images/fanout.png)
 
 A "tick" of this data consists of:
 ```
