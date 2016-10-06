@@ -133,16 +133,34 @@ java -cp ./target/nyse-taq-streaming-1.0.jar:./src/test/resources com.mapr.demo.
 
 In this example we are starting 3 threads to handle the 3 partitions in topic, ```/user/mapr/taq:trades```.
 
-### Step 5:  Starting Other Consumers 
+### Step 5:  Persist stream data in a database
+
+#### Persist stream data with MapR-DB
 
 The class ```Persister.java``` is provided as a code example to help you get familiar with the MapR-DB and OJAI APIs, and persists data to MapR-DB that it consumes a topic.  You can run this class with the following command line:
 
 ```
 java -cp target/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0110
 ```
-This causes trades, bids and asks sent by sender ID ```0110``` to be persisted to MapR-DB.
+This causes trades, bids and asks sent by sender ID ```0110``` to be persisted to MapR-DB in a table located at /mapr/ian.cluster.com/user/mapr/ticktable. Here are some examples of how you can query this table:
 
-For querying the indexed data, we have provided a ```SparkStreamingToHive``` class that builds tables that can be queried with Spark SQL.  Run this class as follows:
+Here’s how to query the MapR-DB table with dbshell:
+
+	mapr dbshell
+	    find /user/mapr/ticktable
+
+Here’s how to query the MapR-DB table with Apache Drill.  First start Drill like this:
+
+	/opt/mapr/drill/drill-1.6.0/bin/sqlline -u jdbc:drill:
+
+Then enter either of the following two SELECT statements:
+
+	SELECT * FROM dfs.`/mapr/ian.cluster.com/user/mapr/ticktable`;
+	SELECT * FROM dfs.`/user/mapr/ticktable`;
+
+#### Persist stream data from Spark using Apache Hive
+
+The ```SparkStreamingToHive``` class builds tables that can be queried with Spark SQL.  Run this class as follows:
 
 ```
 /opt/mapr/spark/spark-1.6.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive ./target/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410 ticks_from_0410'
