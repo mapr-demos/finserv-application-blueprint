@@ -1,3 +1,8 @@
+# This script generates boxplot figures for test data. Boxplots are described here:
+#   https://en.wikipedia.org/wiki/Box_plot
+#   https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/boxplot.html
+
+
 png(file="topics.png", width=800, height=500, pointsize=16)
 x = read.csv("topic-count.csv")
 boxplot(batchRate/1e6 ~ topicCount + batchSize, x[x$i>2e6,], 

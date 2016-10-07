@@ -22,16 +22,13 @@ import org.slf4j.LoggerFactory;
 public class Consumer {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Consumer.class);
-
 	private static final long POLL_INTERVAL = 4000;  // consumer poll every X milliseconds
 	private static final long OFFSET_INTERVAL = 10000;  // record offset once every X messages
 	private static final ProducerRecord<String, byte[]> END = new ProducerRecord<>("end", null);
 	private static final AtomicLong COUNT = new AtomicLong();
-
 	private final boolean verbose;
 	private final String topic;
 	private int threadCount = 1;
-
 	private KafkaConsumer consumer;
 	private final int batchSize = 0;
 	private long newcount = 0;
@@ -44,11 +41,9 @@ public class Consumer {
 	}
 
 	private static class Sender extends Thread {
-
 		private final KafkaProducer<String, byte[]> producer;
 		private final KafkaProducer<String, String> offset_producer;
 		private final BlockingQueue<ProducerRecord<String, byte[]>> queue;
-
 		public Sender(KafkaProducer<String, byte[]> producer, KafkaProducer<String, String> offset_producer, BlockingQueue<ProducerRecord<String, byte[]>> queue) {
 			this.producer = producer;
 			this.offset_producer = offset_producer;
@@ -73,7 +68,6 @@ public class Consumer {
 						});
 					}
 					else {
-//                        String event_timestamp = new Tick(rec.value()).getDate();
 						Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
 						String event_timestamp = Long.toString(cal.getTimeInMillis());
 						producer.send(rec, (RecordMetadata metadata, Exception e) -> {
@@ -96,14 +90,31 @@ public class Consumer {
 		}
 	}
 
+	/**
+	 * Fan out messages from raw tick stream to topics belonging to the traders (sender and receivers)
+	 * participating in each tick. This method is a consumer of raw data, but a producer
+	 * for each participant topic.
+	 */
 	public void consume() throws Exception {
 		System.out.println("Spawning " + threadCount + " consumer threads");
 
+		// Create a pool of sender threads.
 		ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+
+		// We need some way to give each sender messages to publish.
+		// We'll do that via this list of queues.
 		List<BlockingQueue<ProducerRecord<String, byte[]>>> queues = Lists.newArrayList();
+
 		for (int i = 0; i < threadCount; i++) {
+			/* We use BlockingQueue to buffer messages for each sender.
+			 * We use this type not for concurrency reasons (although it is thread safe) but
+			 * rather because it provides an efficient way for sender threads to take messages
+			 * if they're available and for us to generate those messages (see below).
+			 */
 			BlockingQueue<ProducerRecord<String, byte[]>> q = new ArrayBlockingQueue<>(1000);
 			queues.add(q);
+
+			// spawn each thread with a reference to "q", which we'll add messages to later.
 			pool.submit(new Sender(getProducer(), getOffsetProducer(), q));
 		}
 
@@ -134,14 +145,26 @@ public class Consumer {
 			try {
 				for (ConsumerRecord<String, byte[]> raw_record : records) {
 					String key = Long.toString(Calendar.getInstance(TimeZone.getTimeZone("GMT")).getTimeInMillis());
-					//String key = raw_record.key();  // We're using the key to calculate delay from when the message was sent
 					byte[] data = raw_record.value();
 					String sender_id = new String(data, 71, 4);
 					String send_topic = "/user/mapr/taq:sender_" + sender_id;
+
+					/* ENSURE TOPIC AFFINITY FOR EACH THREAD:
+					 * The topic hashcode works in the sense that equal topics always have equal hashes.
+					 * So this will ensure that a topic will always be populated by the same sender thread.
+					 * We want to load balance senders without using round robin, because with round robin
+					 * all senders would have to send to all topics, and we've found that it's much faster
+					 * to minimize the number of topics each kafka producer sends to.
+					 * By using this hashcode we can maintain affinity between Kafka topic and sender thread.
+					 */
 					int qid = send_topic.hashCode() % threadCount;
 					if (qid < 0) {
 						qid += threadCount;
 					}
+
+					/* Put a message to be published in the queue belonging to the sender we just selected.
+					 * That sender will automatically send this message as soon as possible.
+					 */
 					queues.get(qid).put(new ProducerRecord<>(send_topic, key, data));
 					for (int j = 0; (79 + j * 4) <= data.length; j++) {
 						String receiver_id = new String(data, 75 + j * 4, 4);
@@ -168,6 +191,9 @@ public class Consumer {
 		}
 	}
 
+	/**
+	 * Set the configuration parameters for the producer to sender/receiver topics.
+	 */
 	private KafkaProducer<String, byte[]> getProducer() throws IOException {
 		Properties p = new Properties();
 		p.load(Resources.getResource("producer.props").openStream());
@@ -179,6 +205,9 @@ public class Consumer {
 		return new KafkaProducer<>(p);
 	}
 
+	/**
+	 * Set the configuration parameters for the producer to sender/receiver_offset topics.
+	 */
 	private KafkaProducer<String, String> getOffsetProducer() throws IOException {
 		Properties p = new Properties();
 		p.load(Resources.getResource("offset_producer.props").openStream());
@@ -191,7 +220,7 @@ public class Consumer {
 	}
 
 	/**
-	 * Set the value for configuration parameters.
+	 * Set the configuration parameters for the raw tick topic consumer.
 	 */
 	private void configureConsumer() {
 		Properties props = new Properties();

@@ -139,29 +139,39 @@ public class ThreadCountSpeedIT {
 			for (int j = 0; j < BATCH_SIZE; j++) {
 				// Get a random topic (but always assign it to the same sender thread)
 				String topic = ourTopics.get(rand.nextInt(topicCount));
-				// The topic hashcode works in the sense that equal topics always have equal hashes.
-				// So this will ensure that a topic will always be populated by the same sender thread.
-				// We want to load balance senders without using round robin, because with round robin
-				// all senders would have to send to all topics, and we've found that it's much faster
-				// to minimize the number of topics each kafka producer sends to.
-				// By using this hashcode we can maintain affinity between Kafka topic and sender thread.
+
+				/* ENSURE TOPIC AFFINITY FOR EACH THREAD:
+				 *
+				 * The topic hashcode works in the sense that equal topics always have equal hashes.
+				 * So this will ensure that a topic will always be populated by the same sender thread.
+				 * We want to load balance senders without using round robin, because with round robin
+				 * all senders would have to send to all topics, and we've found that it's much faster
+				 * to minimize the number of topics each kafka producer sends to.
+				 * By using this hashcode we can maintain affinity between Kafka topic and sender thread.
+				 */
 				int qid = topic.hashCode() % threadCount;
 				if (qid < 0) {
 					qid += threadCount;
 				}
-				// Put a message to be published in the queue belonging to the sender we just selected.
-				// That sender will automatically send this message as soon as possible.
+				/* Put a message to be published in the queue belonging to the sender we just selected.
+				 * That sender will automatically send this message as soon as possible.
+				 */
 				queues.get(qid).put(new ProducerRecord<>(topic, message.getData()));
 			}
 			i += BATCH_SIZE;
 			double t = System.nanoTime() * 1e-9 - t0;
 			double dt = t - batchStart;
 			batchStart = t;
-			// i = number of batches (number of "1 million messages" sent)
-			// t = total elapsed time
-			// i/t = throughput (number of batches sent overall per second)
-			// dt = elapsed time for this batch
-			// batch / dt = millions of messages sent per second for this batch
+
+			/*
+			 * FIELD DESCRIPTIONS:
+			 *
+			 *   i = number of batches (number of "1 million messages" sent)
+			 *   t = total elapsed time
+			 *   i/t = throughput (number of batches sent overall per second)
+			 *   dt = elapsed time for this batch
+			 *   batch / dt = millions of messages sent per second for this batch
+			 */
 			data.printf("%d,%d,%d,%.3f,%.1f,%.3f,%.1f\n", threadCount, topicCount, i, t, i / t, dt, BATCH_SIZE / dt);
 			if (t > TIMEOUT) {
 				break;
