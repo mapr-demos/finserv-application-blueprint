@@ -76,11 +76,12 @@ public class ThreadCountSpeedIT {
 			try {
 				ProducerRecord<String, byte[]> rec = queue.take();
 				while (rec != end) {
-					// Here's were the sender thread sends a message.
-					// Since we're not supplying a callback the send will be done asynchronously.
-					// The outgoing message will go to a local buffer which is not necessarily FIFO,
-					// but sending messages out-of-order does not matter since we're just trying to
-					// test throughput in this class.
+					/* Here's were the sender thread sends a message.
+					 * Since we're not supplying a callback the send will be done asynchronously.
+					 * The outgoing message will go to a local buffer which is not necessarily FIFO,
+					 * but sending messages out-of-order does not matter since we're just trying to
+					 * test throughput in this class.
+					 */
 					producer.send(rec);
 					rec = queue.take();
 				}
@@ -115,10 +116,11 @@ public class ThreadCountSpeedIT {
 		// We'll do that via this list of queues.
 		List<BlockingQueue<ProducerRecord<String, byte[]>>> queues = Lists.newArrayList();
 		for (int i = 0; i < threadCount; i++) {
-			// We use BlockingQueue to buffer messages for each sender.
-			// We use this type not for concurrency reasons (although it is thread safe) but
-			// rather because it provides an efficient way for senders to take messages if
-			// they're available and for us to generate those messages (see below).
+			/* We use BlockingQueue to buffer messages for each sender.
+			 * We use this type not for concurrency reasons (although it is thread safe) but
+			 * rather because it provides an efficient way for senders to take messages if
+			 * they're available and for us to generate those messages (see below).
+			 */
 			BlockingQueue<ProducerRecord<String, byte[]>> q = new ArrayBlockingQueue<>(1000);
 			queues.add(q);
 			// spawn each thread with a reference to "q", which we'll add messages to later.
@@ -128,12 +130,13 @@ public class ThreadCountSpeedIT {
 		double t0 = System.nanoTime() * 1e-9;
 		double batchStart = 0;
 
-		// -------- Generate Messages for each Sender --------
-		// Generate BATCH_SIZE messages at a time and send each one to a random sender thread.
-		// The batch size was defined above as containing 1 million messages.
-		// We want to send as many messages as possible until a timeout has been reached.
-		// The timeout was defined above as 30 seconds.
-		// We'll break out of this loop when that timeout occurs.
+		/* -------- Generate Messages for each Sender --------
+		 * Generate BATCH_SIZE messages at a time and send each one to a random sender thread.
+		 * The batch size was defined above as containing 1 million messages.
+		 * We want to send as many messages as possible until a timeout has been reached.
+		 * The timeout was defined above as 30 seconds.
+		 * We'll break out of this loop when that timeout occurs.
+		 */
 		for (int i = 0; i >= 0 && i < Integer.MAX_VALUE; ) {
 			// Send each message in our batch (of 1 million messages) to a random topic.
 			for (int j = 0; j < BATCH_SIZE; j++) {
@@ -177,9 +180,10 @@ public class ThreadCountSpeedIT {
 				break;
 			}
 		}
-		// We cleanly shutdown each producer thread by sending the predefined "end" message
-		// then shutdown the threads in the pool after giving them a few seconds to see that
-		// end message.
+		/* We cleanly shutdown each producer thread by sending the predefined "end" message
+		 * then shutdown the threads in the pool after giving them a few seconds to see that
+		 * end message.
+		 */
 		for (int i = 0; i < threadCount; i++) {
 			queues.get(i).add(end);
 		}
@@ -187,15 +191,14 @@ public class ThreadCountSpeedIT {
 		pool.awaitTermination(10, TimeUnit.SECONDS);
 	}
 
+	/**
+	 * Set configuration parameters for the producer
+	 *   Properties reference:
+	 *   https://kafka.apache.org/090/javadoc/index.html?org/apache/kafka/clients/producer/KafkaProducer.html
+	 */
 	KafkaProducer<String, byte[]> getProducer() throws IOException {
 		Properties props = new Properties();
 		props.load(Resources.getResource("producer.props").openStream());
-		// Properties reference:
-		// https://kafka.apache.org/090/javadoc/index.html?org/apache/kafka/clients/producer/KafkaProducer.html
-		// props.put("batch.size", 16384);
-		// props.put("linger.ms", 1);
-		// props.put("buffer.memory", 33554432);
-
 		return new KafkaProducer<>(props);
 	}
 }
