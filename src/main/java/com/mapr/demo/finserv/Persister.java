@@ -57,7 +57,6 @@ public class Persister {
 		// been processed
 		String topic = "/user/mapr/taq:processed";
 		String tableName = "/user/mapr/ticktable";
-		Set<String> syms = new HashSet<String>();
 		long nmsgs = 0;
 		Table table;
 
@@ -102,27 +101,8 @@ public class Persister {
 					Tick tick = new Tick(record.value());
 					Document document = MapRDB.newDocument((Object)tick);
 
-					String this_sym = document.getString("symbol");
-					syms.add(this_sym);
-
 					// save document into the table
 					table.insertOrReplace(tick.getTradeSequenceNumber(), document);
-				}
-			}
-
-			if ((msg.count() != 0) && (nmsgs % U_INTERVAL) == 0) {
-				System.out.println("Write update per-symbol:");
-				System.out.println("------------------------");
-
-				for (String s : syms) {
-					QueryCondition cond = MapRDB.newCondition()
-							.is("symbol", QueryCondition.Op.EQUAL, s).build();
-					DocumentStream results = table.find(cond);
-					int c = 0;
-					for (Document d : results) {
-						c++;
-					}
-					System.out.println("\t" + s + ": " + c);
 				}
 			}
 		}
