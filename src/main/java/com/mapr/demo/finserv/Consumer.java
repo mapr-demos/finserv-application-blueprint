@@ -8,6 +8,7 @@ import com.google.common.io.Resources;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -59,27 +60,31 @@ public class Consumer {
 					COUNT.incrementAndGet();
 					// Record an offset every once in a while
 					if (COUNT.get() % OFFSET_INTERVAL != 0) {
-						producer.send(rec, (RecordMetadata metadata, Exception e) -> {
-							if (metadata == null || e != null) {
-								// If there appears to have been an error, decrement our counter metric
-								COUNT.decrementAndGet();
-								queue.add(rec_backup);
-							}
-						});
-					}
-					else {
+						producer.send(rec,
+							new Callback() {
+								public void onCompletion(RecordMetadata metadata, Exception e) {
+									if (metadata == null || e != null) {
+										// If there appears to have been an error, decrement our counter metric
+										COUNT.decrementAndGet();
+										queue.add(rec_backup);
+									}
+								}
+							});
+					} else {
 						Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
-						String event_timestamp = Long.toString(cal.getTimeInMillis());
-						producer.send(rec, (RecordMetadata metadata, Exception e) -> {
-							if (metadata == null || e != null) {
-								// If there appears to have been an error, decrement our counter metric
-								COUNT.decrementAndGet();
-								queue.add(rec_backup);
-							}
-							else {
-								offset_producer.send(new ProducerRecord<>(metadata.topic() + "-offset", event_timestamp, Long.toString(metadata.offset())));
-							}
-						});
+						final String event_timestamp = Long.toString(cal.getTimeInMillis());
+						producer.send(rec,
+							new Callback() {
+								public void onCompletion(RecordMetadata metadata, Exception e) {
+									if (metadata == null || e != null) {
+										// If there appears to have been an error, decrement our counter metric
+										COUNT.decrementAndGet();
+										queue.add(rec_backup);
+									} else {
+										offset_producer.send(new ProducerRecord<>(metadata.topic() + "-offset", event_timestamp, Long.toString(metadata.offset())));
+									}
+								}
+							});
 					}
 					rec = queue.take();
 				}

@@ -27,6 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -44,6 +46,7 @@ import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.hive.HiveContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 
 public class SparkStreamingToHive {
 
@@ -72,7 +75,7 @@ public class SparkStreamingToHive {
 			.setMaster("local[" + NUM_THREADS + "]");
 		JavaSparkContext sc = new JavaSparkContext(conf);
 		JavaStreamingContext ssc = new JavaStreamingContext(sc, new Duration(BATCH_INTERVAL));
-		HiveContext hiveContext = new org.apache.spark.sql.hive.HiveContext(sc.sc());
+		final HiveContext hiveContext = new org.apache.spark.sql.hive.HiveContext(sc.sc());
 
 		String topic = args[0];
 		Set<String> topics = Collections.singleton(topic);
@@ -96,7 +99,7 @@ public class SparkStreamingToHive {
 		fields.add(DataTypes.createStructField("receivers",
 			DataTypes.createArrayType(DataTypes.StringType, true), true));
 
-		StructType schema = DataTypes.createStructType(fields);
+		final StructType schema = DataTypes.createStructType(fields);
 
 		// Create an input stream that directly pulls messages from Kafka Brokers without using any receiver.
 		// This will query Kafka for the latest offset in each topic+parition every BATCH_INTERVAL seconds.
@@ -108,45 +111,54 @@ public class SparkStreamingToHive {
 		// This foreachRDD is an output operator with at-least once semantics.
 		// In case of worker failure we may persist duplicate data to Hive.
 		// Reference: http://spark.apache.org/docs/latest/streaming-programming-guide.html#semantics-of-output-operations
-		directKafkaStream.foreachRDD(rdd -> {
-			if (rdd.count() > 0) {
-				System.out.println("RDD batch size = " + rdd.count());
-				// Parse each row using the helper methods in the Tick data structure
-				JavaRDD<String> tick = rdd.map(x -> new String(x._2));
-				JavaRDD<Row> rowRDD = tick.map(
-					new Function<String, Row>() {
-					public Row call(String record) throws Exception {
-						if (record.trim().length() > 0) {
-							Tick t = new Tick(record.trim());
-							return RowFactory.create(new java.sql.Timestamp(t.getTimeInMillis()), t.getSymbolRoot(), t.getTradeVolume(), t.getTradePrice(), t.getSender(), t.getReceivers());
-						}
-						else {
-							return RowFactory.create("", "", "", "", "", "");
-						}
-					}
-				});
+		directKafkaStream.foreachRDD(
+				new Function<JavaPairRDD<String,byte[]>, Void>() {
+					public Void call(JavaPairRDD<String, byte[]> rdd) {
+						if (rdd.count() > 0) {
+							System.out.println("RDD batch size = " + rdd.count());
+							// Parse each row using the helper methods in the Tick data structure
+							JavaRDD<String> tick = rdd.map(
+									new Function<Tuple2<String,byte[]>, String>() {
+										public String call(Tuple2<String,byte[]> x) {
+											return new String(x._2);
+										}
+									});
 
-				// Apply our user-defined schema to the RDD and export it to a Hive table
-				DataFrame batch_table = hiveContext.createDataFrame(rowRDD, schema);
+							JavaRDD<Row> rowRDD = tick.map(
+									new Function<String, Row>() {
+										public Row call(String record) throws Exception {
+											if (record.trim().length() > 0) {
+												Tick t = new Tick(record.trim());
+												return RowFactory.create(new java.sql.Timestamp(t.getTimeInMillis()), t.getSymbolRoot(), t.getTradeVolume(), t.getTradePrice(), t.getSender(), t.getReceivers());
+											} else {
+												return RowFactory.create("", "", "", "", "", "");
+											}
+										}
+									});
+
+							// Apply our user-defined schema to the RDD and export it to a Hive table
+							DataFrame batch_table = hiveContext.createDataFrame(rowRDD, schema);
 //                master_tick_table.unionAll(tick_table);
 
-				batch_table.registerTempTable("batchTable");
-				hiveContext.sql("create table if not exists " + HIVE_TABLE + " as select * from batchTable");
-				hiveContext.sql("insert into " + HIVE_TABLE + " select * from batchTable");
+							batch_table.registerTempTable("batchTable");
+							hiveContext.sql("create table if not exists " + HIVE_TABLE + " as select * from batchTable");
+							hiveContext.sql("insert into " + HIVE_TABLE + " select * from batchTable");
 
-				// Print the schema that we will use for our Hive table
+							// Print the schema that we will use for our Hive table
 //                tick_table_for_zeppelin.printSchema();
-				// Print the first 5 rows of our Hive table
+							// Print the first 5 rows of our Hive table
 //                tick_table_for_zeppelin.show(5);
-				Row[] results = hiveContext.sql("SELECT count(*) from " + HIVE_TABLE).collect();
-				System.out.println("Hive table size = " + results[0].toString().replaceAll("\\[(.*?)\\]", "$1"));
-				// Save the Hive table so that it can be accessed by Zeppelin
-				// This will be saved in a path like, /mapr/ian.cluster.com/user/hive/warehouse/
+							Row[] results = hiveContext.sql("SELECT count(*) from " + HIVE_TABLE).collect();
+							System.out.println("Hive table size = " + results[0].toString().replaceAll("\\[(.*?)\\]", "$1"));
+							// Save the Hive table so that it can be accessed by Zeppelin
+							// This will be saved in a path like, /mapr/ian.cluster.com/user/hive/warehouse/
 //                tick_table.write().mode(SaveMode.Append).saveAsTable("ticks");
 //                tick_table.saveAsTable("ticks", SaveMode.Append);
 
-			}
-		});
+						}
+						return null;
+					}
+				});
 
 		// TODO: test getting offsets from another topic, to use for fetching a subset of a topic
 		ssc.start();

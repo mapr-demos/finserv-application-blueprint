@@ -1,8 +1,11 @@
 package com.mapr.demo.finserv;
 
+import org.apache.htrace.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.htrace.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.kafka.v09.OffsetRange;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
@@ -121,9 +124,20 @@ public class SparkStreamingConsole {
 					kafkaParams.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 					kafkaParams.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
-					List<Tuple2<Long, Long>> timed_offsets = KafkaUtils.createRDD(sc, String.class, String.class, kafkaParams, offsetRanges)
-						.map(record -> new Tuple2<Long, Long>(Long.parseLong(new String(record._1)), Long.parseLong(new String(record._2))))
-						.collect();
+					JavaPairRDD<String, String> rdd = KafkaUtils.createRDD(
+							sc,
+							String.class,
+							String.class,
+							kafkaParams,
+							offsetRanges
+					);
+
+					List<Tuple2<Long, Long>> timed_offsets = rdd.map(
+							new Function<Tuple2<String,String>, Tuple2<Long, Long>>() {
+								public Tuple2<Long, Long> call(Tuple2<String,String> record) {
+									return new Tuple2<Long, Long>(Long.parseLong(record._1), Long.parseLong(record._2));
+								}
+							}).collect();
 
 					for (int i = 0; i < timed_offsets.size() && !found; i++) {
 						Long timestamp = timed_offsets.get(i)._1;
@@ -164,17 +178,25 @@ public class SparkStreamingConsole {
 		kafkaParams2.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		kafkaParams2.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
-		JavaRDD<String> rdd = KafkaUtils.createRDD(sc, String.class, byte[].class, kafkaParams2, offsetRanges)
-			.map((Tuple2<String, byte[]> record) -> {
-				Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
-				String key = record._1;
-				byte[] value = record._2;
-				cal.setTimeInMillis(Long.parseLong(key));
-				System.out.println("timesstamp=" + FORMATTER.format(cal.getTime()));
-				// output Tick in JSON format
-				System.out.println("\t" + new ObjectMapper().writeValueAsString(new Tick(value)));
-				return new String(value);
-			});
+		JavaPairRDD<String, byte[]> rdd = KafkaUtils.createRDD(sc, String.class, byte[].class, kafkaParams2, offsetRanges);
+		rdd.map(
+				new Function<Tuple2<String,byte[]>, String>() {
+					public String call(Tuple2<String,byte[]> record) {
+						Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
+						String key = record._1;
+						byte[] value = record._2;
+						cal.setTimeInMillis(Long.parseLong(key));
+						System.out.println("timesstamp=" + FORMATTER.format(cal.getTime()));
+						// output Tick in JSON format
+						try {
+							System.out.println("\t" + new ObjectMapper().writeValueAsString(new Tick(value)));
+						} catch (JsonProcessingException e) {
+							e.printStackTrace();
+						}
+						return new String(value);
+					}
+				});
+
 		System.out.println("--------------------------------\n" + rdd.count() + " trades recorded in " + topic + " over the past " + input + " seconds.");
 	}
 

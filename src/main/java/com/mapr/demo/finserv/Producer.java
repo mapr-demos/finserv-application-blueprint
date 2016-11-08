@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 
 import com.google.common.base.Charsets;
+import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -62,9 +63,12 @@ public class Producer {
 					//String key = Long.toString(Calendar.getInstance(TimeZone.getTimeZone("GMT")).getTimeInMillis());
 					ProducerRecord<String, byte[]> record = new ProducerRecord<>(topic, key, line.getBytes(Charsets.ISO_8859_1));
 
-					producer.send(record, (RecordMetadata metadata, Exception e) -> {
-						PROCESSED.incrementAndGet();
-					});
+					producer.send(record,
+						new Callback() {
+							public void onCompletion(RecordMetadata metadata, Exception e) {
+								PROCESSED.incrementAndGet();
+							}
+						});
 
 					// Print performance stats once per second
 					if ((Math.floor(current_time - startTime) / 1e9) > last_update) {
