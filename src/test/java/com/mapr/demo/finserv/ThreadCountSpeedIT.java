@@ -159,7 +159,7 @@ public class ThreadCountSpeedIT {
 				/* Put a message to be published in the queue belonging to the sender we just selected.
 				 * That sender will automatically send this message as soon as possible.
 				 */
-				queues.get(qid).put(new ProducerRecord<>(topic, message.getData()));
+				queues.get(qid).put(new ProducerRecord<String, byte[]>(topic, message.getData()));
 			}
 			i += BATCH_SIZE;
 			double t = System.nanoTime() * 1e-9 - t0;

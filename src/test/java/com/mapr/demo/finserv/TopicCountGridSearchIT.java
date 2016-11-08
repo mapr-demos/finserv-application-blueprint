@@ -85,7 +85,7 @@ public class TopicCountGridSearchIT {
 		for (int i = 0; i < 1e8;) {
 			for (int j = 0; j < batch; j++) {
 				String topic = ourTopics.get(rand.nextInt(topicCount));
-				producer.send(new ProducerRecord<>(topic, message.getData()));
+				producer.send(new ProducerRecord<String, byte[]>(topic, message.getData()));
 			}
 			double t = System.nanoTime() * 1e-9 - t0;
 			double dt = t - batchStart;
