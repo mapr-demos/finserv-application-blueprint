@@ -23,16 +23,25 @@ There are several beneficial aspects of the application that are worth highlight
 
 To get the application running you will need a cluster or single node with MapR 5.1 or greater.  You can use the free [Converged Community Edition](http://mapr.com/download) or the [Converged Enterprise Edition](https://www.mapr.com/products/mapr-distribution-editions).  The example will also run on the [MapR Sandbox](http://mapr.com/sandbox).  Optionally, you will need python 2.7 to run the data generation script.  Some performance tests that use R are also provided (see the section below about Testing Speeds for Different Configurations).
 
+You will also need git and Apache Maven in order to download and compile the provided source code.
+
 ## Building the application
 
-Clone this repo and build the application with Maven.  A pom.xml file is included in the base directory.
+Clone this repo and build the application with Maven.  A pom.xml file is included in the base directory. The remainder of this guide will assume that you clone the package to /home/mapr/.
 
 ```
-git clone http://github.com/mapr-demos/finserv-application-blueprint
+cd /home/mapr/
+git clone http://github.com/mapr-demos/finserv-application-blueprint.git
 cd finserv-application-blueprint
 mvn clean install
 ```
 At this point you should see the resulting jar file in the target/ directory:  ```nyse-taq-streaming-1.0.jar```
+
+Copy that jar package to the /home/mapr/ directory on each of your cluster nodes:
+
+```
+scp ./target/nyse-taq-streaming-1.0-jar mapr@<YOUR_MAPR_CLUSTER>:/home/mapr
+```
 
 ## Preparing the Platform and Running the Application
 
@@ -40,23 +49,11 @@ Follow the steps in this section to run the application.  You can run these comm
 
 Optionally you can also run the application from a client node.  To setup one, install the [MapR Client](http://maprdocs.mapr.com/51/index.html#AdvancedInstallation/SettingUptheClient-client_26982445-d3e146.html) and run the application locally.
 
-If you build the .jar file on a machine where you will not be running it, simply copy the program to your server using scp:
-
-```
-scp ./target/nyse-taq-streaming-1.0-jar. mapr@<YOUR_MAPR_CLUSTER>:/home/mapr
-```
-
-Or, a faster way involves `rsync`:
-
-```
-rsync -vapr --progress --stats --partial target/nyse-taq-streaming-1.0-jar-with-dependencies.jar mapr@10.200.1.101:~/
-```
-
 ### Step 1: Create the stream
 
-A *stream* is a collection of topics that you can manage together for security, default number or partitions, and time to leave for the messages.  The Kafka API is supporte for applications.  For more information on Streams, [consult this overview page](https://www.mapr.com/products/mapr-streams).
+A *stream* is a logical grouping of topics. They give us a way to group together topics and protect those topics with a single set of security permissions and other properties. MapR supports the Kafka API for interacting with streams.  For more information on Streams, see [https://www.mapr.com/products/mapr-streams](https://www.mapr.com/products/mapr-streams).
 
-Run the following command from a single node on the MapR cluster:
+Run the following command from any node in your MapR cluster:
 
 ```
 $ maprcli stream create -path /user/mapr/taq -produceperm p -consumeperm p -topicperm p -ttl 900
@@ -86,23 +83,36 @@ trades           1           0            0          0       0
 
 This enables 3 partitions in the topic for scaling across threads, more information on how partitions work can be found [here](http://maprdocs.mapr.com/51/MapR_Streams/concepts.html).
 
-### Step 3: Run the Producer
+### Step 3. Start the "Fan Out" Consumer
 
-When you start the producer, it will send a large number of messages to `/user/mapr/taq:trades` (this denotes the '/user/mapr/taq' stream and the topic 'trades'). Since there isn't any consumer running yet, nothing will receive the messages.
+We use a multi-threaded microservice that indexes the incoming information into separate topics by receiver and sender. We call this a "fan out" consumer, because it consumes tick data from incoming stock exchange stream and copies each tick record into topics belonging to all the participants of a trade. So for example, if this consumer sees an offer by Sender X to sell shares to recipients A, B, and C, then this consumer will copy that tick to four new topics, identified as sender_X, receiver_A, receiver_B, and receiver_C. This relationship is illustrated below:
 
-Run the producer like this:
+<img src="https://github.com/mapr-demos/finserv-application-blueprint/blob/master/images/fanout.png" width="40%">
+
+A "tick" of this data consists of:
+```
+{time, sender, id, symbol, prices, ..., [recipient*]}
+```
+For each message in the stream there is a single sender and multiple possible receipients.  The consumer will index these into separate topics so they can be queried.
+
+Run the following command to start the consumer:
 
 ```
-java -cp `mapr classpath`:./ com.mapr.demo.finserv.Run producer [source data file] [stream:topic]
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar:/home/mapr/finserv-application-blueprint/src/test/resources com.mapr.demo.finserv.Run consumer /user/mapr/taq:trades 3
+```
+
+In this example we are starting 3 threads to handle the 3 partitions in topic, ```/user/mapr/taq:trades```.
+
+### Step 4: Run the Producer
+
+Run the producer with the following command. This will send all the trades contained in files under finserv-application-blueprint/data/ to `/user/mapr/taq:trades`, where '/user/mapr/taq' is the stream and 'trades' is the topic. 
+
+```
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
 ```
 
 A small data file representing one second of trades, bids and asks (```data/080449```) is provided for convenience.  To generate more data, see the section 'Generating Data' below.
 
-For example, to run with the provided sample data, run:
-
-```
-java -cp ./target/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
-```
 
 You should see the producer running and printing throughput numbers:
 ```
@@ -115,27 +125,6 @@ Throughput = 478.99 Kmsgs/sec published. Threads = 1. Total published = 2406537.
 
 This simulates "live" bids, asks and trades streaming from an exchange.
 
-### Step 4. Start the "Fan Out" Consumer
-
-We use a multi-threaded microservice that indexes the incoming information into separate topics by receiver and sender. We call this a "fan out" consumer, because it consumes tick data from incoming NYSE stream and copies each tick record into topics belonging to all the participants of a trade. So for example, if this consumer sees an offer by Sender X to sell shares to recipients A, B, and C, then this consumer will copy that tick to four new topics, identified as sender_X, receiver_A, receiver_B, and receiver_C. This relationship is illustrated below:
-
-<img src="https://github.com/mapr-demos/finserv-application-blueprint/blob/master/images/fanout.png" width="40%">
-
-
-A "tick" of this data consists of:
-```
-{time, sender, id, symbol, prices, ..., [recipient*]}
-```
-For each message in the stream there is a single sender and multiple possible receipients.  The consumer will index these into separate topics so they can be queried.
-
-Run the following command to start the consumer:
-
-```
-java -cp ./target/nyse-taq-streaming-1.0.jar:./src/test/resources com.mapr.demo.finserv.Run consumer /user/mapr/taq:trades 3
-```
-
-In this example we are starting 3 threads to handle the 3 partitions in topic, ```/user/mapr/taq:trades```.
-
 ### Step 5:  Persist stream data in a database
 
 #### Persist stream data with MapR-DB
@@ -143,7 +132,7 @@ In this example we are starting 3 threads to handle the 3 partitions in topic, `
 The class ```Persister.java``` is provided as a code example to help you get familiar with the MapR-DB and OJAI APIs, and persists data to MapR-DB that it consumes a topic.  You can run this class with the following command line:
 
 ```
-java -cp target/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0110
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0110
 ```
 This causes trades, bids and asks sent by sender ID ```0110``` to be persisted to MapR-DB in a table located at /mapr/ian.cluster.com/user/mapr/ticktable. Here are some examples of how you can query this table:
 
@@ -152,7 +141,7 @@ Here’s how to query the MapR-DB table with dbshell:
 	mapr dbshell
 	    find /user/mapr/ticktable
 
-Here’s how to query the MapR-DB table with Apache Drill.  First start Drill like this:
+If you've installed Apache Drill, here’s how to query the MapR-DB table with Drill. First start Drill like this:
 
 	/opt/mapr/drill/drill-1.6.0/bin/sqlline -u jdbc:drill:
 
@@ -166,46 +155,18 @@ Then enter either of the following two SELECT statements:
 The ```SparkStreamingToHive``` class builds tables that can be queried with Spark SQL.  Run this class as follows:
 
 ```
-/opt/mapr/spark/spark-1.6.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive ./target/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410 ticks_from_0410'
+/opt/mapr/spark/spark-1.6.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410 ticks_from_0410
 ```
-This causes a queryable table (which can be queried from i.e. a Zeppelin notebook) to be created for sender with ID ```0410```.
+This causes a queryable table (which can be queried from i.e. a Zeppelin notebook) to be created for the stock trader with ID ```0410```.
 
 A class that simply prints the streaming messages to the console is also provided, and can be run as follows:
 ```
-/opt/mapr/spark/spark-1.6.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingConsole ./target/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410
+/opt/mapr/spark/spark-1.6.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingConsole /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410
 ```
 
-### Monitoring your topics 
+### Building a Dashboard in Apache Zeppelin
 
-You can use the `maprcli` tool to get some information about the topic, for example:
-
-```
-$ maprcli stream info -path /user/mapr/taq -json
-$ maprcli stream topic info -path /user/mapr/taq -topic trades -json
-```
-
-If the cluster filesystem runs out of free space then the kafka producers will fail. If that happens, you can easily start over by removing the stream and creating it again (see above). You can keep an eye on disk space with a command like this (replace "nodea" with your node's hostname):
-
-```
-$ maprcli disk list -host nodea
-```
-
-Here's how to show all the topics for a stream:
-
-```
-$ maprcli stream topic list -path /user/mapr/taq | awk '{print $4}' | sort | uniq -c
-```
-
-Here's how to show the number of messages contained in a topic:
-
-```
-$ maprcli stream topic info -path /user/mapr/taq -topic trades | tail -n 1 | awk '{print $12-$2}'
-```
-
-
-### Building a Dashboard
-
-There are many frameworks we could use here to build an operational dashboard.  [Apache Zeppelin](https://zeppelin.apache.org/) is a good choice because we can build the dashboard with a variety of ways of attaching to the data.
+There are many frameworks we could use to build an operational dashboard.  [Apache Zeppelin](https://zeppelin.apache.org/) is a good choice because we can build the dashboard with a variety of ways of attaching to the data.
 
 <img src = "images/zepdash.png" width=200px>
 
@@ -219,7 +180,13 @@ For testing purposes, we suggest running Zeppelin on either one of the MapR clus
 
 #### Configuring Zeppelin
 
-To build our dashboard, we'll use the ```%sql``` directive to query Spark SQL.  Ensure that the Zeppelin Spark interpeter is configured with options similar to the following (change paths such as ```zeppelin.interpreter.localRepo``` to suit your environment):
+In order for Spark (and hence Zeppelin) to see the tables created for Hive, Spark needs to be directed to use the Hive Metastore. Copy the hive-site.xml from the Hive conf directory to the Spark config directory.
+
+```
+cp /opt/mapr/hive/hive-1.2/conf/hive-site.xml /opt/mapr/spark/spark-1.6.1/conf/
+```
+
+To build our dashboard, we'll use the ```%sql``` directive to query Spark SQL.  Ensure that the Zeppelin Spark interpreter is configured with the following options:
 
 ```
 master	yarn-client

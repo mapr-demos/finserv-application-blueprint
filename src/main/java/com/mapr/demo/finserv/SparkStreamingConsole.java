@@ -178,24 +178,27 @@ public class SparkStreamingConsole {
 		kafkaParams2.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		kafkaParams2.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
-		JavaPairRDD<String, byte[]> rdd = KafkaUtils.createRDD(sc, String.class, byte[].class, kafkaParams2, offsetRanges);
-		rdd.map(
-				new Function<Tuple2<String,byte[]>, String>() {
-					public String call(Tuple2<String,byte[]> record) {
-						Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
-						String key = record._1;
-						byte[] value = record._2;
-						cal.setTimeInMillis(Long.parseLong(key));
-						System.out.println("timesstamp=" + FORMATTER.format(cal.getTime()));
-						// output Tick in JSON format
-						try {
-							System.out.println("\t" + new ObjectMapper().writeValueAsString(new Tick(value)));
-						} catch (JsonProcessingException e) {
-							e.printStackTrace();
-						}
-						return new String(value);
-					}
-				});
+        JavaRDD<String> rdd = KafkaUtils.createRDD(
+                sc,
+                String.class,
+                byte[].class,
+                kafkaParams2,
+                offsetRanges
+        ).map(
+                new Function<Tuple2<String, byte[]>, String>() {
+                    @Override
+                    public String call(Tuple2<String, byte[]> record) throws Exception {
+                        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT"));
+                        String key = record._1;
+                        byte[] value = record._2;
+                        cal.setTimeInMillis(Long.parseLong(key));
+                        System.out.println("timesstamp=" + FORMATTER.format(cal.getTime()));
+                        // output Tick in JSON format
+                        System.out.println("\t"+new ObjectMapper().writeValueAsString(new Tick(value)));
+                        return new String(value);
+                    }
+                }
+        );
 
 		System.out.println("--------------------------------\n" + rdd.count() + " trades recorded in " + topic + " over the past " + input + " seconds.");
 	}
