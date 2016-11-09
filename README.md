@@ -19,11 +19,11 @@ There are several beneficial aspects of the application that are worth highlight
 - The application can handle 300,000 entries/second on a 3-node cluster, which is suitable for testing.  It does not require a large cluster, and takes advantage of the scaling properties of MapR Streams.
 - The resulting index topics are small, and can be queried fast enough such that they can be used for interactive dashboards, such as in a Zeppelin notebook.
 
-# Architecture
+## Architecture
 
 The following diagram shows how data moves through the architecture of this application. The rounded rectangles represent Java microservices that produce data and/or consume data from MapR Streams topics using the Kafka API. Spark and Apache Zeppelin are used to provide streaming analytics and batch oriented visualization.
 
-![dataflow](https://github.com/mapr-demos/finserv-application-blueprint/blob/master/images/dataflow.gif)
+<img src="https://github.com/mapr-demos/finserv-application-blueprint/blob/master/images/dataflow.gif" width="70%">
 
 ## Prerequisites
 
