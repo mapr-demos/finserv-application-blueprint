@@ -21,7 +21,7 @@ There are several beneficial aspects of the application that are worth highlight
 
 ## Architecture
 
-The following diagram shows how data moves through the architecture of this application. The rounded rectangles represent Java microservices that produce data and/or consume data from MapR Streams topics using the Kafka API. Spark and Apache Zeppelin are used to provide streaming analytics and batch oriented visualization.
+The following diagram shows how data moves through the architecture of this application. The rounded rectangles represent processes that produce and/or consume data from MapR Streams topics. Java based microservices are used to ingest and manipulate streaming data using the Kafka API. Spark and Apache Zeppelin are used to provide streaming analytics and batch oriented visualization.
 
 <img src="https://github.com/mapr-demos/finserv-application-blueprint/blob/master/images/dataflow.gif" width="70%">
 
