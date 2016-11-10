@@ -115,15 +115,16 @@ public class SparkStreamingConsole {
 					offset_consumer.poll(2000);
 
 					latestOffset = getLatestOffset(offset_consumer, offset_topic, 0);
-
-					OffsetRange[] offsetRanges = {
-						OffsetRange.create(topic + "-offset", 0, 0, latestOffset)
-					};
+                    // Get the entire offset range (from time zero to latestOffset) for the user-specified offset topic.
+                    OffsetRange[] offsetRanges = {
+                            OffsetRange.create(topic + "-offset", 0, 0, latestOffset)
+                    };
 
 					Map<String, String> kafkaParams = new HashMap<>();
 					kafkaParams.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 					kafkaParams.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
+                    // Create an rdd that we can iterate through to find which offsets correspond to the timestamps we want.
 					JavaPairRDD<String, String> rdd = KafkaUtils.createRDD(
 							sc,
 							String.class,
@@ -132,6 +133,7 @@ public class SparkStreamingConsole {
 							offsetRanges
 					);
 
+                    // Get all the (timestamp,offset) pairs that were saved in the user-specified offset topic.
 					List<Tuple2<Long, Long>> timed_offsets = rdd.map(
 							new Function<Tuple2<String,String>, Tuple2<Long, Long>>() {
 								public Tuple2<Long, Long> call(Tuple2<String,String> record) {
@@ -139,6 +141,8 @@ public class SparkStreamingConsole {
 								}
 							}).collect();
 
+                    // Iterate through the list of (timetstamp,offset) pairs until we find the offsets for timestamps
+                    // we're actually interested in.
 					for (int i = 0; i < timed_offsets.size() && !found; i++) {
 						Long timestamp = timed_offsets.get(i)._1;
 						if (timestamp >= from_time) {
@@ -147,6 +151,8 @@ public class SparkStreamingConsole {
 							cal.setTimeInMillis(timed_offsets.get(i)._1);
 							System.out.println("offset " + fromOffset + " corresponds to time " + FORMATTER.format(cal.getTime()));
 							System.out.println("Using offset " + fromOffset);
+                            // Now that we know the range of offsets that correspond to the trades we want in the user-specified
+                            // topic, lets go ahead and read those records.
 							read_from_offset(sc, topic, fromOffset, user_input);
 						}
 					}
