@@ -147,10 +147,15 @@ mapr dbshell
   maprdb mapr:> find /user/mapr/ticktable
 ```
 
-If you've installed Apache Drill, here’s how to query the MapR-DB table with Drill. First start Drill like this:
+If you've installed Apache Drill, here’s how to query the MapR-DB table from the command line:
 
 	/opt/mapr/drill/drill-*/bin/sqlline -u jdbc:drill:
-	0: jdbc:drill:> SELECT * FROM dfs.`/user/mapr/ticktable`;
+	0: jdbc:drill:> SELECT * FROM dfs.`/user/mapr/ticktable` LIMIT 10;
+
+You can also perform that SQL query in the Drill web interface, which by default runs on port 8047, as shown below:
+
+<img src = "images/drill_query.png">
+
 
 #### Persist stream data from Spark using Apache Hive
 
@@ -160,7 +165,7 @@ The ```SparkStreamingToHive``` class uses the Spark Streaming API to copy messag
 /opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410 ticks_from_0410
 ```
 
-This will read messages from the stream topic associated with stock trader with ID ```0410``` and copy those messages to Hive. This tail operation, so it will wait for new messages on the topic. You may need to restart the producer and consumer (see above) to generate new messages for this log.
+This will read messages from the stream topic associated with stock trader with ID ```0410``` and copy those messages to Hive. This tail operation, so it will wait for new messages on the topic. You may need to restart the producer and consumer [see above](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer) to generate new messages for this log.
 
 We've provided another Spark Streaming example which tails a log for messages within a user-specified time range. Essentially, this allows one to ask, "Show me all the trades by trader X that were sent within the last 60 seconds". This is a good example of how Spark Streaming can use offsets to subset data in a topic. It's also useful for debugging purposes, if for example you want to see the messages at the tail of a topic. This utility can be run like this: 
 
