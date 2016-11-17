@@ -302,31 +302,16 @@ We've provided a sample Zeppelin notebook which includes some sample SQL queries
 
 ## (Optional) Generate More Data
 
-The source data files are kept in a separate repo to keep this one to a manageable size.  To get more data, perform the following steps.  You can either use the larger starting set of data files provided here, or run the provided script ```prepticks.py``` to generate more from scratch.  This will take the NYSE TAQ file as input and generate simulated bids and asks leading up to each trade, at a pre-defined rate per second.
-
-First, download the data repo:
+You can download 500MB more trade data with the following commands. Note, these data files are kept in a separate GitHub repository in order to keep this one to a manageable size.      
 
 ```
 git clone https://github.com/mapr-demos/finserv-data-files
-```
-
-Expand the starter data files as follows:
-
-```
 cd finserv-data-files
 mkdir data
 tar xvfz starter_datafiles.tar.gz -C data
 ```
 
-You can then pass this ```data``` directory to the consumer application above.
-
-If you want to generate even more data (for example, to simulate an entire trading day) then run ```prepticks.py``` to generate it using the NYSE TAQ files.  First combine them:
-
-```
-cat taq/* >> data.zip
-unzip data.zip
-```
-Now, go back to this repo and edit the file ```prepticks.py``` to point to the file you just unzipped and the output directory.  This will generate data for all events in the TAQ file.  A machine with 128G RAM is recommended for generating data.
+You can then pass this ```data``` directory to the producer application as described above, in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer).
 
 ## (Optional) Clean Up
 
