@@ -300,21 +300,7 @@ We've provided a sample Zeppelin notebook which includes some sample SQL queries
 
 <img src = "images/zepdash2.png" width=600px>
 
-## Cleaning Up
-
-When you are done, you can delete the stream, and all associated topic using the following command:
-
-```
-maprcli stream delete -path /user/mapr/taq
-```
-
-Remove the Hive table:
-
-```
-rm -rf /mapr/ian.cluster.com/user/hive/warehouse/streaming_ticks/
-```
-
-### Generating Data
+## (Optional) Generate More Data
 
 The source data files are kept in a separate repo to keep this one to a manageable size.  To get more data, perform the following steps.  You can either use the larger starting set of data files provided here, or run the provided script ```prepticks.py``` to generate more from scratch.  This will take the NYSE TAQ file as input and generate simulated bids and asks leading up to each trade, at a pre-defined rate per second.
 
@@ -341,6 +327,22 @@ cat taq/* >> data.zip
 unzip data.zip
 ```
 Now, go back to this repo and edit the file ```prepticks.py``` to point to the file you just unzipped and the output directory.  This will generate data for all events in the TAQ file.  A machine with 128G RAM is recommended for generating data.
+
+## (Optional) Clean Up
+
+To save disk space, its a good idea to remove the stream and Hive tables that you created in prior steps.
+
+Here's how to delete a stream and all the associated topics:
+
+```
+maprcli stream delete -path /user/mapr/taq
+```
+
+Here's how to delete a Hive table:
+
+```
+rm -rf /mapr/ian.cluster.com/user/hive/warehouse/streaming_ticks/
+```
 
 
 # Get Community Support!
