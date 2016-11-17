@@ -311,7 +311,11 @@ mkdir data
 tar xvfz starter_datafiles.tar.gz -C data
 ```
 
-You can then pass this ```data``` directory to the producer application as described above, in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer).
+You can then pass this ```data``` directory to the producer command described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer):
+
+```
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer ./data/ /user/mapr/taq:trades
+```
 
 ## (Optional) Clean Up
 
