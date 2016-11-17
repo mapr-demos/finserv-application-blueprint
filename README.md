@@ -154,7 +154,7 @@ If you've installed Apache Drill, here’s how to query the MapR-DB table from t
 
 You can also perform that SQL query in the Drill web interface, which by default runs on port 8047, as shown below:
 
-<img src = "images/drill_query.png" width=200px>
+<img src = "images/drill_query.png" width=600px>
 
 
 #### Persist stream data from Spark using Apache Hive
