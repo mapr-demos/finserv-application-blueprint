@@ -87,7 +87,7 @@ maprcli stream topic list -path /user/mapr/taq
 
 This enables 3 partitions in the topic for scaling across threads, more information on how partitions work can be found [here](http://maprdocs.mapr.com/51/MapR_Streams/concepts.html).
 
-### Step 3. Start the "Fan Out" Consumer
+### Step 3: Start the "Fan Out" Consumer
 
 We use a multi-threaded microservice that indexes the incoming information into separate topics by receiver and sender. We call this a "fan out" consumer, because it consumes tick data from incoming stock exchange stream and copies each tick record into topics belonging to all the participants of a trade. So for example, if this consumer sees an offer by Sender X to sell shares to recipients A, B, and C, then this consumer will copy that tick to four new topics, identified as sender_X, receiver_A, receiver_B, and receiver_C. This relationship is illustrated below:
 
@@ -129,7 +129,7 @@ Throughput = 478.99 Kmsgs/sec published. Threads = 1. Total published = 2406537.
 
 This simulates "live" bids, asks and trades streaming from an exchange.
 
-### Step 5:  Persist stream data in a database
+### Step 5: Persist stream data in a database
 
 #### Persist stream data with MapR-DB
 
@@ -157,7 +157,7 @@ You can also perform that SQL query in the Drill web interface, which by default
 <img src = "images/drill_query.png" width=600px>
 
 
-#### Persist streaming data using Apache Hive
+#### Persist stream data with Apache Hive
 
 The ```SparkStreamingToHive``` class uses the Spark Streaming API to copy messages from the tail of streaming topics to Hive tables that can be analyzed in Zeppelin. Zeppelin can't directly access stream topics, so we use this utility to access streaming data from Zeppelin. Here's how to run this class:
 
@@ -183,36 +183,32 @@ We've provided another Spark Streaming example which reads messages delivered ov
 /opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingConsole /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410
 ```
 
-### Building a Dashboard in Apache Zeppelin
+### Step 6: Build a Dashboard in Apache Zeppelin
 
-There are many frameworks we could use to build an operational dashboard.  [Apache Zeppelin](https://zeppelin.apache.org/) is a good choice because we can build the dashboard with a variety of ways of attaching to the data.
+There are many frameworks we could use to build an operational dashboard. [Apache Zeppelin](https://zeppelin.apache.org/) is a good choice because it supports a variety of ways to access data. Our goal is to build a dashboard that looks like this:
 
-<img src = "images/zepdash.png" width=200px>
+<img src = "images/zepdash.png" width=400px>
 
-Follow the steps in this section to build a dashboard with SQL queries into the tables we built in previous sections.
+Here's what you need to do to setup a dashboard like that:
 
-This example requires the following software:
-* MapR 5.1 or greater (including Spark)
-* Zeppelin 0.7-SNAPSHOT or greater
+#### Install and Configure Zeppelin
 
-For testing purposes, we suggest running Zeppelin on either one of the MapR cluster nodes, or in a client node with the ```mapr-client``` package installed.
+In a production environment you'd probably want to run Zeppelin on a workstation with the ```mapr-client``` package installed, but just to keep things simple we're going to assume you're running Zeppelin on one of your MapR cluster nodes.
 
-#### Configuring Zeppelin
-
-Download the latest Zeppelin snapshot:
+Download the latest Zeppelin snapshot with this command:
 
 ```
 git clone https://github.com/apache/zeppelin.git
 ```
 
-Compile it with the following options (for MapR 5.2):
+Compile it with the following command (this works on MapR 5.2):
 
 ```
 cd zeppelin
 mvn package -Pbuild-distr -Pmapr51 -Pyarn -Pspark-1.6 -DskipTests -Phadoop2.7
 ```
 
-Tell Zeppelin where Spark is installed:
+Run these commands to tell Zeppelin where Spark is installed:
 
 ```
 echo "export HADOOP_CONF_DIR=\"/opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop\"" >> /opt/zeppelin/conf/zeppelin-env.sh
@@ -220,13 +216,17 @@ echo "export ZEPPELIN_JAVA_OPTS=\"-Dspark.executor.instances=4 -Dspark.executor.
 echo "export SPARK_HOME=\"/opt/mapr/spark/spark-1.6.1\"" >> /opt/zeppelin/conf/zeppelin-env.sh
 ```
 
-In order for Spark (and hence Zeppelin) to see the tables created for Hive, Spark needs to be directed to use the Hive Metastore. Copy the hive-site.xml from the Hive conf directory to the Spark config directory.
+In order for Spark (and hence Zeppelin) to see Hive tables, Spark needs to be directed to use the Hive Metastore. Copy the hive-site.xml from the Hive conf directory to the Spark config directory, like this:
 
 ```
 cp /opt/mapr/hive/hive-*/conf/hive-site.xml /opt/mapr/spark/spark-*/conf/
 ```
 
-To build our dashboard, we'll use the ```%sql``` directive to query Spark SQL.  Ensure that the Zeppelin Spark interpreter is configured with the following options:
+Open the options for Zeppelin's Spark interpreter, as shown below:
+
+<img src = "images/zepconfig.png" width=600px>
+
+Ensure that the Zeppelin Spark interpreter is configured with the following options:
 
 ```
 master	yarn-client
