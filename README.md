@@ -62,13 +62,13 @@ A *stream* is a logical grouping of topics. They give us a way to group together
 Run the following command from any node in your MapR cluster:
 
 ```
-$ maprcli stream create -path /user/mapr/taq -produceperm p -consumeperm p -topicperm p -ttl 900
+maprcli stream create -path /user/mapr/taq -produceperm p -consumeperm p -topicperm p -ttl 900
 ```
 
 In that command we created the topic with public permission since we want to be able to run producers and consumers from remote computers. Verify the stream was created with this command:
 
 ```
-$ maprcli stream info -path /user/mapr/taq
+maprcli stream info -path /user/mapr/taq
 ```
 
 ### Step 2: Create the topics
@@ -76,15 +76,13 @@ $ maprcli stream info -path /user/mapr/taq
 We only need to create one topic to get started, the rest are created by the application. Topics are created with the `maprcli` tool.  Run this command on a single node in the cluster:
 
 ```
-$ maprcli stream topic create -path /user/mapr/taq -topic trades -partitions 3
+maprcli stream topic create -path /user/mapr/taq -topic trades -partitions 3
 ```
 
 Verify the topic was created successfully with this command:
 
 ```
-$ maprcli stream topic list -path /user/mapr/taq
-partitions  maxlag  logicalsize  topic   consumers  physicalsize
-3           0       0            trades  0          0
+maprcli stream topic list -path /user/mapr/taq
 ```
 
 This enables 3 partitions in the topic for scaling across threads, more information on how partitions work can be found [here](http://maprdocs.mapr.com/51/MapR_Streams/concepts.html).
@@ -144,12 +142,14 @@ This causes trades, bids and asks sent by sender ID ```0110``` to be persisted t
 
 Here’s how to query the MapR-DB table with dbshell:
 
-	$ mapr dbshell
-	maprdb mapr:> find /user/mapr/ticktable
+```
+mapr dbshell
+  maprdb mapr:> find /user/mapr/ticktable
+```
 
 If you've installed Apache Drill, here’s how to query the MapR-DB table with Drill. First start Drill like this:
 
-	$ /opt/mapr/drill/drill-*/bin/sqlline -u jdbc:drill:
+	/opt/mapr/drill/drill-*/bin/sqlline -u jdbc:drill:
 	0: jdbc:drill:> SELECT * FROM dfs.`/user/mapr/ticktable`;
 
 #### Persist stream data from Spark using Apache Hive
@@ -159,9 +159,11 @@ The ```SparkStreamingToHive``` class uses the Spark Streaming API to copy messag
 ```
 /opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410 ticks_from_0410
 ```
+
 This will read messages from the stream topic associated with stock trader with ID ```0410``` and copy those messages to Hive. This tail operation, so it will wait for new messages on the topic. You may need to restart the producer and consumer (see above) to generate new messages for this log.
 
 We've provided another Spark Streaming example which tails a log for messages within a user-specified time range. Essentially, this allows one to ask, "Show me all the trades by trader X that were sent within the last 60 seconds". This is a good example of how Spark Streaming can use offsets to subset data in a topic. It's also useful for debugging purposes, if for example you want to see the messages at the tail of a topic. This utility can be run like this: 
+
 ```
 /opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingConsole /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410
 ```
@@ -185,22 +187,22 @@ For testing purposes, we suggest running Zeppelin on either one of the MapR clus
 Download the latest Zeppelin snapshot:
 
 ```
-$ git clone https://github.com/apache/zeppelin.git
+git clone https://github.com/apache/zeppelin.git
 ```
 
 Compile it with the following options (for MapR 5.2):
 
 ```
-$ cd zeppelin
-$ mvn package -Pbuild-distr -Pmapr51 -Pyarn -Pspark-1.6 -DskipTests -Phadoop2.7
+cd zeppelin
+mvn package -Pbuild-distr -Pmapr51 -Pyarn -Pspark-1.6 -DskipTests -Phadoop2.7
 ```
 
 Tell Zeppelin where Spark is installed:
 
 ```
-$ echo "export HADOOP_CONF_DIR=\"/opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop\"" >> /opt/zeppelin/conf/zeppelin-env.sh
-$ echo "export ZEPPELIN_JAVA_OPTS=\"-Dspark.executor.instances=4 -Dspark.executor.memory=2g\"" >> /opt/zeppelin/conf/zeppelin-env.sh
-$ echo "export SPARK_HOME=\"/opt/mapr/spark/spark-1.6.1\"" >> /opt/zeppelin/conf/zeppelin-env.sh
+echo "export HADOOP_CONF_DIR=\"/opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop\"" >> /opt/zeppelin/conf/zeppelin-env.sh
+echo "export ZEPPELIN_JAVA_OPTS=\"-Dspark.executor.instances=4 -Dspark.executor.memory=2g\"" >> /opt/zeppelin/conf/zeppelin-env.sh
+echo "export SPARK_HOME=\"/opt/mapr/spark/spark-1.6.1\"" >> /opt/zeppelin/conf/zeppelin-env.sh
 ```
 
 In order for Spark (and hence Zeppelin) to see the tables created for Hive, Spark needs to be directed to use the Hive Metastore. Copy the hive-site.xml from the Hive conf directory to the Spark config directory.
@@ -230,18 +232,18 @@ zeppelin.spark.useHiveContext	true
 Setup Zeppelin to run automatically as a Linux daemon. The following steps should work for CentOS:
 
 ```
-$ mv ~/zeppelin /opt/
-$ echo "# chkconfig: 2345 90 60" >> /etc/init.d/zeppelin
-$ echo "test -e /opt/zeppelin/bin/zeppelin-daemon.sh || exit 1" >> /etc/init.d/zeppelin
-$ echo "exec su -s /bin/bash -c \"/opt/zeppelin/bin/zeppelin-daemon.sh \$@\" mapr" >> /etc/init.d/zeppelin
-$ chkconfig --add zeppelin
-$ chkconfig --list zeppelin
+mv ~/zeppelin /opt/
+echo "# chkconfig: 2345 90 60" >> /etc/init.d/zeppelin
+echo "test -e /opt/zeppelin/bin/zeppelin-daemon.sh || exit 1" >> /etc/init.d/zeppelin
+echo "exec su -s /bin/bash -c \"/opt/zeppelin/bin/zeppelin-daemon.sh \$@\" mapr" >> /etc/init.d/zeppelin
+chkconfig --add zeppelin
+chkconfig --list zeppelin
 ```
 
 Start Zeppelin, like this:
 
 ```
-$ service zeppelin start
+service zeppelin start
 ```
 
 #### Create Hive tables
@@ -249,18 +251,18 @@ $ service zeppelin start
 Import the bank company names into a new hive table. Later, we'll map these names to bank IDs with a table join in Zeppelin. 
 
 ```
-$ hive
+hive
   hive> CREATE TABLE banks(id int, name string) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
   hive> LOAD DATA LOCAL INPATH '/home/mapr/finserv-application-blueprint/data/bank_list.csv' INTO TABLE banks;
 ```
 
-Copy streaming data to Hive table for each trader:
+Run this command to load streaming data into a Hive table:
 
 ```
 /opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:trades streaming_ticks
 ```
 
-As we mentioned earlier, that command will only look for new messages in the trades topic (i.e. it tails the log) so after it says "Waiting for messages", then rerun the producer as follows:
+That command will only see *new* messages in the trades topic because it tails the log, so when it says "Waiting for messages" then run the following command to put more trade data into the stream:
 
 ```
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
@@ -277,7 +279,7 @@ Zeppelin divides notebooks into subsections called *paragraphs*. First, create a
 
 You should see the ```banks``` and ```streaming_ticks``` tables in the list. If not, look in /opt/zeppeling/logs/*.log for an error.
 
-We've provided a sample Zeppelin notebook which includes some sample SQL queries and charts to get you started. Load the finserv-application-blueprint/data/note.json file with the Import feature in the Zeppelin web UI. After you've imported it, you should see a new notebook called "NYSE Trades and Quotes" in Zeppelin. You should see something like the screenshot below:
+We've provided a sample Zeppelin notebook which includes some sample SQL queries and charts to get you started. Load the finserv-application-blueprint/data/note.json file with the Import feature in the Zeppelin web UI. After you've imported it, you should see a new notebook called "Stock Exchange Analysis" in Zeppelin. You should see something like the screenshot below:
 
 
 ## Cleaning Up
@@ -285,13 +287,13 @@ We've provided a sample Zeppelin notebook which includes some sample SQL queries
 When you are done, you can delete the stream, and all associated topic using the following command:
 
 ```
-$ maprcli stream delete -path /user/mapr/taq
+maprcli stream delete -path /user/mapr/taq
 ```
 
 Remove the Hive table:
 
 ```
-$ rm -rf /mapr/ian.cluster.com/user/hive/warehouse/streaming_ticks/
+rm -rf /mapr/ian.cluster.com/user/hive/warehouse/streaming_ticks/
 ```
 
 ### Generating Data
