@@ -163,7 +163,7 @@ public class SparkStreamingConsole {
 				}
 			}
 			catch (UnknownTopicOrPartitionException e) {
-				System.out.println("Topic " + offset_topic + "does not exist, yet.");
+				System.out.println("Topic " + offset_topic + " does not exist, yet.");
 			}
 		}
 		consumer.unsubscribe();
