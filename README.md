@@ -136,9 +136,9 @@ This simulates "live" bids, asks and trades streaming from an exchange.
 The class ```Persister.java``` is provided as a code example to help you get familiar with the MapR-DB and OJAI APIs, and persists data to MapR-DB that it consumes a topic.  You can run this class with the following command line:
 
 ```
-java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0110
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_1361
 ```
-This creates a stream consumer that persists trades from sender ID ```0110``` to MapR-DB in a table located at /mapr/ian.cluster.com/user/mapr/ticktable. That command will only see *new* messages in the trades topic because it tails the log, so when it says "No messages after 1 second wait", then run the following command to put more trade data into the stream. This command was described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
+This creates a stream consumer that persists trades from sender ID ```1361``` to MapR-DB in a table located at /mapr/my.cluster.com/user/mapr/ticktable. That command will only see *new* messages in the trades topic because it tails the log, so when it says "No messages after 1 second wait", then run the following command to put more trade data into the stream. This command was described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
 
 ```
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
@@ -336,7 +336,7 @@ maprcli stream delete -path /user/mapr/taq
 Here's how to delete a Hive table:
 
 ```
-rm -rf /mapr/ian.cluster.com/user/hive/warehouse/streaming_ticks/
+rm -rf /mapr/my.cluster.com/user/hive/warehouse/streaming_ticks/
 ```
 
 
