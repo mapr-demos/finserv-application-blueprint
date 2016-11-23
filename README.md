@@ -138,21 +138,27 @@ The class ```Persister.java``` is provided as a code example to help you get fam
 ```
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0110
 ```
-This causes trades, bids and asks sent by sender ID ```0110``` to be persisted to MapR-DB in a table located at /mapr/ian.cluster.com/user/mapr/ticktable. Here are some examples of how you can query this table:
+This creates a stream consumer that persists trades from sender ID ```0110``` to MapR-DB in a table located at /mapr/ian.cluster.com/user/mapr/ticktable. That command will only see *new* messages in the trades topic because it tails the log, so when it says "No messages after 1 second wait", then run the following command to put more trade data into the stream. This command was described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
 
-Here’s how to query the MapR-DB table with dbshell:
+```
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
+```
+
+Here are some examples of how you can query the table created by the Persister:
+
+Query the MapR-DB table with dbshell:
 
 ```
 mapr dbshell
   maprdb mapr:> find /user/mapr/ticktable
 ```
 
-If you've installed Apache Drill, here’s how to query the MapR-DB table from the command line:
+Query the MapR-DB table from the Apach Drill command line:
 
 	/opt/mapr/drill/drill-*/bin/sqlline -u jdbc:drill:
 	0: jdbc:drill:> SELECT * FROM dfs.`/user/mapr/ticktable` LIMIT 10;
 
-You can also perform that SQL query in the Drill web interface, which by default runs on port 8047, as shown below:
+Query the MapR-DB table from the Apach Drill web interface, as shown below:
 
 <img src = "images/drill_query.png" width=600px>
 
