@@ -46,7 +46,7 @@ At this point you should see the resulting jar file in the target/ directory:  `
 Copy that jar package to the /home/mapr/ directory on each of your cluster nodes:
 
 ```
-scp ./target/nyse-taq-streaming-1.0-jar mapr@<YOUR_MAPR_CLUSTER>:/home/mapr
+scp ./target/nyse-taq-streaming-1.0.jar mapr@<YOUR_MAPR_CLUSTER>:/home/mapr
 ```
 
 ## Preparing the Platform and Running the Application
@@ -112,7 +112,7 @@ In this example we are starting 3 threads to handle the 3 partitions in topic, `
 Run the producer with the following command. This will send all the trades contained in files under finserv-application-blueprint/data/ to `/user/mapr/taq:trades`, where '/user/mapr/taq' is the stream and 'trades' is the topic. 
 
 ```
-java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/080449 /user/mapr/taq:trades
 ```
 
 A small data file representing one second of trades, bids and asks (```data/080449```) is provided for convenience.  To generate more data, see the section 'Generating Data' below.
