@@ -131,9 +131,13 @@ This simulates "live" bids, asks and trades streaming from an exchange.
 
 ### Step 5: Persist stream data in a database
 
+We'll explain two ways in which streaming data can be persisted into long-term storage. First we'll see how this can be done with MapR-DB, then we'll see how this can be done with Apache Hive.  
+
 #### Persist stream data with MapR-DB
 
-The class ```Persister.java``` is provided as a code example to help you get familiar with the MapR-DB and OJAI APIs, and persists data to MapR-DB that it consumes a topic.  You can run this class with the following command line:
+The ```Persister.java``` class uses Spark SQL to persist JSON records from MapR Streams into MapR-DB.  It requires Spark 1.6. If you're using Spark 2.0 you won't see all the JSON columns in MapR-DB table.
+
+This class can be run with the following command:
 
 ```
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0310
