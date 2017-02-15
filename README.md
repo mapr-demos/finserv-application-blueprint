@@ -21,7 +21,9 @@ There are several beneficial aspects of the application that are worth highlight
 
 ## Architecture
 
-The following diagram shows how data moves through the architecture of this application. The rounded rectangles represent processes that produce and/or consume data from MapR Streams topics. Java based microservices are used to ingest and manipulate streaming data using the Kafka API. Spark and Apache Zeppelin are used to provide streaming analytics and batch oriented visualization.
+The application provides a financial intermediary service, running *bids* and *asks* between traders.  Traders are identified with a unique ID and each bid and ask is sent from one trader to a set of N receiving traders.
+
+The following diagram shows how data moves through the architecture. The rounded rectangles represent processes that produce and/or consume data from MapR Streams topics. Java based microservices are used to ingest and manipulate streaming data using the Kafka API. Spark and Apache Zeppelin are used to provide streaming analytics and batch oriented visualization.
 
 <img src="https://github.com/mapr-demos/finserv-application-blueprint/blob/master/images/dataflow.gif" width="70%">
 
@@ -142,7 +144,7 @@ This class can be run with the following command:
 ```
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0310
 ```
-This creates a stream consumer that persists trades from sender ID ```0310``` to MapR-DB in a table located at /mapr/my.cluster.com/user/mapr/ticktable. That command will only see *new* messages in the trades topic because it tails the log, so when it says "No messages after 1 second wait", then run the following command to put more trade data into the stream. This command was described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
+This creates a stream consumer that persists trades from sender ID ```0310``` to MapR-DB in a table located at /mapr/my.cluster.com/user/mapr/ticktable (note this is hard-coded in the class source code). That command will only see *new* messages in the trades topic because it tails the log, so when it says "No messages after 1 second wait", then run the following command to put more trade data into the stream. This command was described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
 
 ```
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
@@ -157,12 +159,12 @@ mapr dbshell
   maprdb mapr:> find /user/mapr/ticktable
 ```
 
-Query the MapR-DB table from the Apach Drill command line:
+Query the MapR-DB table from the Apache Drill command line:
 
 	/opt/mapr/drill/drill-*/bin/sqlline -u jdbc:drill:
 	0: jdbc:drill:> SELECT * FROM dfs.`/user/mapr/ticktable` LIMIT 10;
 
-Query the MapR-DB table from the Apach Drill web interface, as shown below:
+Query the MapR-DB table from the Apache Drill web interface, as shown below:
 
 <img src = "images/drill_query.png" width=600px>
 
@@ -304,7 +306,7 @@ Zeppelin divides notebooks into subsections called *paragraphs*. Create a new no
 %sql show tables
 ```
 
-You should see the ```banks``` and ```streaming_ticks``` tables in the list. If not, look for an error in the logs under `/opt/zeppeling/logs/`.
+You should see the ```banks``` and ```streaming_ticks``` tables in the list. If not, look for an error in the logs under `/opt/zeppelin/logs/`.
 
 We've provided a sample Zeppelin notebook which includes some sample SQL queries and charts to get you started. Load the finserv-application-blueprint/data/note.json file with the Import feature in the Zeppelin web UI. After you've imported it, you should see a new notebook called "Stock Exchange Analysis" in Zeppelin, which looks like this:
 
