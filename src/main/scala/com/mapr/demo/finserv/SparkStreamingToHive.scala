@@ -1,4 +1,4 @@
-package com.sparkkafka.uber
+package com.mapr.demo.finserv
 
 import org.apache.spark.sql.SparkSession
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -7,7 +7,9 @@ import org.apache.spark.streaming.{ Seconds, StreamingContext }
 import org.apache.spark.streaming.kafka09.{ ConsumerStrategies, KafkaUtils, LocationStrategies }
 import org.apache.spark.streaming.dstream.DStream
 
-object SparkKafkaConsumer {
+object SparkStreamingToHive {
+  // Hive table name for persisted ticks
+  val HIVE_TABLE: String = "streaming_ticks"
 
   case class Tick(date: Long, exchange: String, symbol: String, price: Double, volume: Double, sender: String, receivers: Array[String]) extends Serializable
 
@@ -19,7 +21,7 @@ object SparkKafkaConsumer {
 
   def main(args: Array[String]): Unit = {
     if (args.length < 1) {
-      throw new IllegalArgumentException("You must specify the subscribe topic. For example /user/mapr/taq:trades")
+      throw new IllegalArgumentException("You must specify the subscribe topic and hive table name. For example /user/mapr/taq:trades")
     }
 
     val Array(topics) = args
@@ -61,44 +63,34 @@ object SparkKafkaConsumer {
       if (!rdd.isEmpty) {
         val count = rdd.count
         println("count received " + count)
-        val spark = SparkSession.builder.config(rdd.sparkContext.getConf).getOrCreate()
+//        val spark = SparkSession.builder.config(rdd.sparkContext.getConf).getOrCreate()
+        val spark = SparkSession
+          .builder()
+          .appName("SparkSessionTicks")
+          .config(rdd.sparkContext.getConf)
+          .enableHiveSupport()
+          .getOrCreate()
         import spark.implicits._
         import org.apache.spark.sql.functions._
         import org.apache.spark.sql.types._
 
         val df = rdd.map(parseTick).toDF()
         // Display the top 20 rows of DataFrame
-        println("tick data")
+        df.printSchema()
         df.show()
 
-        // TODO: persist a temporary view to Hive
+        df.createOrReplaceTempView("batchTable")
 
-//        val spark = SparkSession.builder.config(rdd.sparkContext.getConf).getOrCreate()
-//        import spark.implicits._
-//
-//        import org.apache.spark.sql.functions._
-//        val df = spark.read.schema(schema).json(rdd)
-//        df.show
-//        df.createOrReplaceTempView("uber")
-//
-//        df.groupBy("cluster").count().show()
-//
-//        spark.sql("select cluster, count(cluster) as count from uber group by cluster").show
-//
-//        spark.sql("SELECT hour(uber.dt) as hr,count(cluster) as ct FROM uber group By hour(uber.dt)").show
-//
-//
-//        df.groupBy("cluster").count().show()
-//
-//        val countsDF = df.groupBy($"cluster", window($"dt", "1 hour")).count()
-//        countsDF.createOrReplaceTempView("uber_counts")
-//
-//        spark.sql("select cluster, sum(count) as total_count from uber_counts group by cluster").show
-//        //spark.sql("sql select cluster, date_format(window.end, "MMM-dd HH:mm") as dt, count from uber_counts order by dt, cluster").show
-//
-//        spark.sql("select cluster, count(cluster) as count from uber group by cluster").show
-//
-//        spark.sql("SELECT hour(uber.dt) as hr,count(cluster) as ct FROM uber group By hour(uber.dt)").show
+        // Validate the dataframe against the temp table
+        df.groupBy("sender").count().show
+        spark.sql("select sender, count(sender) as count from batchTable group by sender").show
+
+        spark.sql("create table if not exists " + HIVE_TABLE + " as select * from batchTable")
+        spark.sql("insert into " + HIVE_TABLE + " select * from batchTable limit 100")
+
+        // Validate the dataframe against the Hive table
+        df.groupBy("date").count().show
+        spark.sql("select count(*) from" + HIVE_TABLE).show
       }
     }
 
