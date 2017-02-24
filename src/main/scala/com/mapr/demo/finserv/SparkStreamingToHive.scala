@@ -1,5 +1,19 @@
 package com.mapr.demo.finserv
 
+/** ****************************************************************************
+  * PURPOSE:
+  * This spark application consumes records from Kafka topics and continuously
+  * persists each message in a Hive table, for the purposes of analysis and
+  * visualization in Zeppelin.
+  *
+  * EXAMPLE USAGE:
+  * /opt/mapr/spark/spark-2.0.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /mapr/tmclust1/user/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar /user/mapr/taq:sender_1142 [my_hive_table_1142]
+  *
+  * AUTHOR:
+  * Ian Downard, idownard@mapr.com
+  *
+  * ****************************************************************************/
+
 import org.apache.spark.sql.SparkSession
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.spark.SparkConf
@@ -9,7 +23,7 @@ import org.apache.spark.streaming.dstream.DStream
 
 object SparkStreamingToHive {
   // Hive table name for persisted ticks
-  val HIVE_TABLE: String = "streaming_ticks"
+  var HIVE_TABLE: String = "streaming_ticks"
 
   case class Tick(date: Long, exchange: String, symbol: String, price: Double, volume: Double, sender: String, receivers: Array[String]) extends Serializable
 
@@ -21,8 +35,11 @@ object SparkStreamingToHive {
 
   def main(args: Array[String]): Unit = {
     if (args.length < 1) {
-      throw new IllegalArgumentException("You must specify the subscribe topic and hive table name. For example /user/mapr/taq:trades")
+      throw new IllegalArgumentException("You must specify a topic to subscribe to (and optionally a hive table to save to).")
     }
+
+    if (args.length == 2)
+      HIVE_TABLE = args(1)
 
     val Array(topics) = args
 
@@ -76,19 +93,20 @@ object SparkStreamingToHive {
 
         val df = rdd.map(parseTick).toDF()
         // Display the top 20 rows of DataFrame
-        df.printSchema()
-        df.show()
+//        df.printSchema()
+//        df.show()
 
         df.createOrReplaceTempView("batchTable")
 
         // Validate the dataframe against the temp table
-        df.groupBy("sender").count().show
-        spark.sql("select sender, count(sender) as count from batchTable group by sender").show
+//        df.groupBy("sender").count().show
+//        spark.sql("select sender, count(sender) as count from batchTable group by sender").show
 
         spark.sql("create table if not exists " + HIVE_TABLE + " as select * from batchTable")
-        spark.sql("insert into " + HIVE_TABLE + " select * from batchTable limit 100")
+        spark.sql("insert into " + HIVE_TABLE + " select * from batchTable")
 
         // Validate the dataframe against the Hive table
+        println("hive count:")
         df.groupBy("date").count().show
         spark.sql("select count(*) from" + HIVE_TABLE).show
       }
