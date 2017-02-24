@@ -172,7 +172,7 @@ Query the MapR-DB table from the Apach Drill web interface, as shown below:
 The ```SparkStreamingToHive``` class uses the Spark Streaming API to copy messages from the tail of streaming topics to Hive tables that can be analyzed in Zeppelin. Zeppelin can't directly access stream topics, so we use this utility to access streaming data from Zeppelin. Here's how to run this class:
 
 ```
-/opt/mapr/spark/spark-2.0.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:trades
+/opt/mapr/spark/spark-2.0.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar /user/mapr/taq:trades
 ```
 
 That command will only see *new* messages in the taq:trades topic because it tails the log, so when it says "Waiting for messages" then run the following command to put more trade data into the stream. This command was described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer):
@@ -184,13 +184,13 @@ java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.fi
 In the previous command, we consumed from the trades topic, which is the raw stream for every trader. If you want to save only trades from a specific trader, then run the following command. This will read messages from the topic associated with the trader called ```sender_0410``` and copy those messages to Hive. Remember, this tail operation so it will wait for new messages on that topic. 
 
 ```
-/opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410 ticks_from_0410
+/opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /home/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar /user/mapr/taq:sender_0410 ticks_from_0410
 ```
 
 We've provided another Spark Streaming example which reads messages delivered over a user-specified time range. Essentially, this allows one to ask, "Show me all the trades by trader X that were sent within the last 60 seconds". This is a good example of how Spark Streaming can use offsets to subset data in a topic. It's also useful for debugging purposes, if for example you want to see the messages at the tail of a topic. This utility can be run like this: 
 
 ```
-/opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingConsole /home/mapr/nyse-taq-streaming-1.0.jar /user/mapr/taq:sender_0410
+/opt/mapr/spark/spark-*/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingConsole /home/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar /user/mapr/taq:sender_0410
 ```
 
 ### Step 6: Build a Dashboard in Apache Zeppelin
@@ -203,73 +203,9 @@ Here's what you need to do to setup a dashboard like that:
 
 #### Install and Configure Zeppelin
 
-In a production environment you'd probably want to run Zeppelin on a workstation with the ```mapr-client``` package installed, but just to keep things simple we're going to assume you're running Zeppelin on one of your MapR cluster nodes.
+We're going to assume you've already installed Apache Zeppelin and configured its Spark SQL interpretter to access Hive tables. If you haven't done that, then follow the instructions for installing Zeppelin in this blog post:
 
-Download the latest Zeppelin snapshot with this command:
-
-```
-git clone https://github.com/apache/zeppelin.git
-```
-
-Compile it with the following command (this works on MapR 5.2):
-
-```
-cd zeppelin
-mvn package -Pbuild-distr -Pmapr51 -Pyarn -Pspark-1.6 -DskipTests -Phadoop2.7
-```
-
-Run these commands to tell Zeppelin where Spark is installed:
-
-```
-echo "export HADOOP_CONF_DIR=\"/opt/mapr/hadoop/hadoop-2.7.0/etc/hadoop\"" >> /opt/zeppelin/conf/zeppelin-env.sh
-echo "export ZEPPELIN_JAVA_OPTS=\"-Dspark.executor.instances=4 -Dspark.executor.memory=2g\"" >> /opt/zeppelin/conf/zeppelin-env.sh
-echo "export SPARK_HOME=\"/opt/mapr/spark/spark-1.6.1\"" >> /opt/zeppelin/conf/zeppelin-env.sh
-```
-
-In order for Spark (and hence Zeppelin) to see Hive tables, Spark needs to be directed to use the Hive Metastore. Copy the hive-site.xml from the Hive conf directory to the Spark config directory, like this:
-
-```
-cp /opt/mapr/hive/hive-*/conf/hive-site.xml /opt/mapr/spark/spark-*/conf/
-```
-
-Open the options for Zeppelin's Spark interpreter, as shown below:
-
-<img src = "images/zepconfig.png" width=600px>
-
-Ensure that the Zeppelin Spark interpreter is configured with the following options:
-
-```
-master	yarn-client
-spark.app.name	Zeppelin
-spark.executor.memory	2g
-zeppelin.dep.additionalRemoteRepository	spark-packages,http://dl.bintray.com/spark-packages/maven,false;
-zeppelin.dep.localrepo	local-repo
-zeppelin.interpreter.localRepo	/home/mapr/zeppelin-0.7.0-SNAPSHOT/local-repo/2BX9VZF48
-zeppelin.pyspark.python	python
-zeppelin.spark.concurrentSQL	false
-zeppelin.spark.importImplicit	true
-zeppelin.spark.maxResult	1000
-zeppelin.spark.printREPLOutput	true
-zeppelin.spark.sql.stacktrace	true
-zeppelin.spark.useHiveContext	true
-```
-
-Setup Zeppelin to run automatically as a Linux daemon. The following steps should work for CentOS:
-
-```
-mv ~/zeppelin /opt/
-echo "# chkconfig: 2345 90 60" >> /etc/init.d/zeppelin
-echo "test -e /opt/zeppelin/bin/zeppelin-daemon.sh || exit 1" >> /etc/init.d/zeppelin
-echo "exec su -s /bin/bash -c \"/opt/zeppelin/bin/zeppelin-daemon.sh \$@\" mapr" >> /etc/init.d/zeppelin
-chkconfig --add zeppelin
-chkconfig --list zeppelin
-```
-
-Start Zeppelin, like this:
-
-```
-service zeppelin start
-```
+https://community.mapr.com/docs/DOC-2029-how-to-use-spark-pyspark-with-zeppelin-on-mapr-cdp-draft
 
 #### Create Hive tables
 
