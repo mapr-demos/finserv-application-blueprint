@@ -27,9 +27,10 @@ The following diagram shows how data moves through the architecture of this appl
 
 ## Prerequisites
 
-To get the application running you will need a cluster or single node with MapR 5.1 or greater.  You can use the free [Converged Community Edition](http://mapr.com/download) or the [Converged Enterprise Edition](https://www.mapr.com/products/mapr-distribution-editions).  The example will also run on the [MapR Sandbox](http://mapr.com/sandbox).  Optionally, you will need python 2.7 to run the data generation script.  Some performance tests that use R are also provided (see the section below about Testing Speeds for Different Configurations).
+This application requires MapR 5.2 and Spark 2.0, which can be easily installed with the [MapR Ecosystem Pack 2.0](http://maprdocs.mapr.com/home/InteropMatrix/r_MEP_52.html).
+You can use MapR's free [Converged Community Edition](http://mapr.com/download) or the [Converged Enterprise Edition](https://www.mapr.com/products/mapr-distribution-editions).   
 
-You will also need git and Apache Maven in order to download and compile the provided source code.
+You will also need Git and Apache Maven in order to download and compile the provided source code.
 
 ## Building the application
 
@@ -48,12 +49,6 @@ Copy that jar package to the /home/mapr/ directory on each of your cluster nodes
 ```
 scp ./target/nyse-taq-streaming-1.0.jar mapr@<YOUR_MAPR_CLUSTER>:/home/mapr
 ```
-
-## Preparing the Platform and Running the Application
-
-Follow the steps in this section to run the application.  You can run these commands on any node in the cluster, but you may want separate the consumer and producer processes onto separate nodes for higher performance.
-
-Optionally you can also run the application from a client node.  To setup one, install the [MapR Client](http://maprdocs.mapr.com/51/index.html#AdvancedInstallation/SettingUptheClient-client_26982445-d3e146.html) and run the application locally.
 
 ### Step 1: Create the stream
 
