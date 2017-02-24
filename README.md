@@ -237,7 +237,7 @@ Zeppelin divides notebooks into subsections called *paragraphs*. Create a new no
 
 You should see the ```banks``` and ```streaming_ticks``` tables in the list. If not, look for an error in the logs under `/opt/zeppeling/logs/`.
 
-We've provided a sample Zeppelin notebook which includes some sample SQL queries and charts to get you started. Load the `finserv-application-blueprint/data/sample_zeppelin_notebook.json` file with the Import feature in the Zeppelin web UI. After you've imported it, you should see a new notebook called "Stock Exchange Analysis" in Zeppelin, which looks like this:
+We've provided a sample Zeppelin notebook which includes some sample SQL queries and charts to get you started. Load the `finserv-application-blueprint/resources/sample_zeppelin_notebook.json` file with the Import feature in the Zeppelin web UI. After you've imported it, you should see a new notebook called "Stock Exchange Analysis" in Zeppelin, which looks like this:
 
 <img src = "images/zepdash2.png" width=600px>
 
