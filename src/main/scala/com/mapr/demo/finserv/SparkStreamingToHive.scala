@@ -23,7 +23,7 @@ import org.apache.spark.streaming.dstream.DStream
 
 object SparkStreamingToHive {
   // Hive table name for persisted ticks
-  var HIVE_TABLE: String = "streaming_ticks"
+  var HIVE_TABLE = "streaming_ticks"
 
   case class Tick(date: Long, exchange: String, symbol: String, price: Double, volume: Double, sender: String, receivers: Array[String]) extends Serializable
 
