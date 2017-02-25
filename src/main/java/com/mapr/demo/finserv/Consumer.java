@@ -138,7 +138,7 @@ public class Consumer {
 			records = consumer.poll(POLL_INTERVAL);
 			if (records == null || records.count() == 0) {
 				if (COUNT.get() >= 10) {
-					System.out.println("The " + topic + "topic is empty. Exiting...");
+					System.out.println("The " + topic + " topic is empty. Exiting...");
 					pool.shutdown();
 					pool.awaitTermination(10, TimeUnit.SECONDS);
 					System.exit(0);
