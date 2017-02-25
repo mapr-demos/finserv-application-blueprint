@@ -41,7 +41,7 @@ object SparkStreamingToHive {
     if (args.length == 2)
       HIVE_TABLE = args(1)
 
-    val Array(topics) = args
+    val Array(topics) = Array(args(1))
 
     val brokers = "maprdemo:9092" // not needed for MapR Streams, needed for Kafka
     val groupId = "sparkApplication"
