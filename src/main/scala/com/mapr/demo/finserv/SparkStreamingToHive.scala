@@ -43,8 +43,8 @@ object SparkStreamingToHive {
 
     val Array(topics) = Array(args(1))
 
-    val brokers = "maprdemo:9092" // not needed for MapR Streams, needed for Kafka
-    val groupId = "sparkApplication"
+    val brokers = "localhost:9092" // not needed for MapR Streams, needed for Kafka
+    val groupId = "SparkStreamingToHive"
     val batchInterval = "2"
     val pollTimeout = "10000"
 
