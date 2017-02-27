@@ -7,7 +7,7 @@ package com.mapr.demo.finserv
   * visualization in Zeppelin.
   *
   * EXAMPLE USAGE:
-  * /opt/mapr/spark/spark-2.0.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /mapr/tmclust1/user/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar /user/mapr/taq:sender_1142 [my_hive_table_1142]
+  *   /opt/mapr/spark/spark-2.0.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /mapr/tmclust1/user/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar --topics /user/mapr/taq:sender_1142,/user/mapr/taq:sender_0041 --table my_hive_table
   *
   * AUTHOR:
   * Ian Downard, idownard@mapr.com
@@ -23,9 +23,15 @@ import org.apache.spark.streaming.dstream.DStream
 
 object SparkStreamingToHive {
   // Hive table name for persisted ticks
-  var HIVE_TABLE = "streaming_ticks"
+  var HIVE_TABLE: String = ""
+  // Verbose output switch
+  val VERBOSE: Boolean = false
 
   case class Tick(date: Long, exchange: String, symbol: String, price: Double, volume: Double, sender: String, receivers: Array[String]) extends Serializable
+
+  val usage = """
+    Usage: spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive nyse-taq-streaming-1.0-jar-with-dependencies.jar --topics <topic1>,<topic2>... --table <destination Hive table>
+  """
 
   def parseTick(record: String): Tick = {
     val tick = new com.mapr.demo.finserv.Tick(record)
@@ -33,15 +39,30 @@ object SparkStreamingToHive {
     Tick(tick.getTimeInMillis, tick.getExchange, tick.getSymbolRoot, tick.getTradePrice, tick.getTradeVolume, tick.getSender, receivers)
   }
 
+
   def main(args: Array[String]): Unit = {
-    if (args.length < 1) {
-      throw new IllegalArgumentException("You must specify a topic to subscribe to (and optionally a hive table to save to).")
+    if (args.length != 4) { println(usage)
+      throw new IllegalArgumentException("Missing command-line arguments")
     }
 
-    if (args.length == 2)
-      HIVE_TABLE = args(1)
+    var topicsSet: Set[String] = Set()
 
-    val Array(topics) = Array(args(1))
+    if (args(0).compareTo("--topics") == 0) {
+      topicsSet = args(1).split(",").toSet
+    }
+    else if (args(0).compareTo("--table") == 0) {
+      HIVE_TABLE = args(1)
+    }
+    if (args(2).compareTo("--topics") == 0) {
+      topicsSet = args(3).split(",").toSet
+    }
+    else if (args(2).compareTo("--table") == 0) {
+      HIVE_TABLE = args(3)
+    }
+
+
+    println("Consuming messages from topics: " + topicsSet.mkString(", "))
+    println("Persisting messages in Hive table: " + HIVE_TABLE)
 
     val brokers = "localhost:9092" // not needed for MapR Streams, needed for Kafka
     val groupId = "SparkStreamingToHive"
@@ -53,7 +74,6 @@ object SparkStreamingToHive {
     val ssc = new StreamingContext(sparkConf, Seconds(batchInterval.toInt))
 
     // Create direct kafka stream with brokers and topics
-    val topicsSet = topics.split(",").toSet
     val kafkaParams = Map[String, String](
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> brokers,
       ConsumerConfig.GROUP_ID_CONFIG -> groupId,
@@ -72,13 +92,14 @@ object SparkStreamingToHive {
     // get message values from key,value
     val valuesDStream: DStream[String] = messagesDStream.map(_.value())
 
+    println("Waiting for messages...")
+
     valuesDStream.foreachRDD { rdd =>
 
       // There exists at least one element in RDD
       if (!rdd.isEmpty) {
         val count = rdd.count
         println("count received " + count)
-//        val spark = SparkSession.builder.config(rdd.sparkContext.getConf).getOrCreate()
         val spark = SparkSession
           .builder()
           .appName("SparkSessionTicks")
@@ -86,19 +107,21 @@ object SparkStreamingToHive {
           .enableHiveSupport()
           .getOrCreate()
         import spark.implicits._
-        import org.apache.spark.sql.functions._
-        import org.apache.spark.sql.types._
 
         val df = rdd.map(parseTick).toDF()
         // Display the top 20 rows of DataFrame
-//        df.printSchema()
-//        df.show()
+        if (VERBOSE) {
+          df.printSchema()
+          df.show()
+        }
 
         df.createOrReplaceTempView("batchTable")
 
         // Validate the dataframe against the temp table
-//        df.groupBy("sender").count().show
-//        spark.sql("select sender, count(sender) as count from batchTable group by sender").show
+        if (VERBOSE) {
+          df.groupBy("sender").count().show
+          spark.sql("select sender, count(sender) as count from batchTable group by sender").show
+        }
 
         spark.sql("create table if not exists " + HIVE_TABLE + " as select * from batchTable")
         spark.sql("insert into " + HIVE_TABLE + " select * from batchTable")
