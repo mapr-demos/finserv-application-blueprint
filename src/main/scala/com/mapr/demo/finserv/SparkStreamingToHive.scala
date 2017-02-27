@@ -62,9 +62,7 @@ object SparkStreamingToHive {
       ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest",
       ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG ->
         "org.apache.kafka.common.serialization.StringDeserializer",
-      ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG -> "true",
-      "spark.kafka.poll.time" -> pollTimeout,
-      "spark.streaming.kafka.consumer.poll.ms" -> "8192"
+      ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG -> "true"
     )
 
     val consumerStrategy = ConsumerStrategies.Subscribe[String, String](topicsSet, kafkaParams)
