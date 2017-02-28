@@ -7,7 +7,7 @@ package com.mapr.demo.finserv
   * visualization in Zeppelin.
   *
   * EXAMPLE USAGE:
-  *   /opt/mapr/spark/spark-2.0.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /mapr/tmclust1/user/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar --topics /user/mapr/taq:sender_1142,/user/mapr/taq:sender_0041 --table my_hive_table
+  *   /opt/mapr/spark/spark-2.0.1/bin/spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive /mapr/tmclust1/user/mapr/nyse-taq-streaming-1.0-jar-with-dependencies.jar --topics /user/mapr/taq:sender_1142,/user/mapr/taq:sender_0041 --table my_hive_table --verbose
   *
   * AUTHOR:
   * Ian Downard, idownard@mapr.com
@@ -25,12 +25,12 @@ object SparkStreamingToHive {
   // Hive table name for persisted ticks
   var HIVE_TABLE: String = ""
   // Verbose output switch
-  val VERBOSE: Boolean = false
+  var VERBOSE: Boolean = false
 
   case class Tick(date: Long, exchange: String, symbol: String, price: Double, volume: Double, sender: String, receivers: Array[String]) extends Serializable
 
   val usage = """
-    Usage: spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive nyse-taq-streaming-1.0-jar-with-dependencies.jar --topics <topic1>,<topic2>... --table <destination Hive table>
+    Usage: spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive nyse-taq-streaming-1.0-jar-with-dependencies.jar -topics <topic1>,<topic2>... -table <destination Hive table> [--verbose]
   """
 
   def parseTick(record: String): Tick = {
@@ -40,22 +40,27 @@ object SparkStreamingToHive {
   }
 
   def main(args: Array[String]): Unit = {
-    if (args.length != 4) { println(usage)
+    if (args.length < 4) {
+      println(usage)
       throw new IllegalArgumentException("Missing command-line arguments")
     }
+
     var topicsSet: Set[String] = Set()
-    if (args(0).compareTo("--topics") == 0) {
-      topicsSet = args(1).split(",").toSet
+    for (i <- 0 until args.length) {
+      if (args(i).compareTo("--topics") == 0) {
+        topicsSet = args(i + 1).split(",").toSet
+      }
+      if (args(i).compareTo("--table") == 0) {
+        HIVE_TABLE = args(i + 1)
+      }
+      if (args(i).compareTo("--verbose") == 0) {
+        VERBOSE = true;
+      }
     }
-    else if (args(0).compareTo("--table") == 0) {
-      HIVE_TABLE = args(1)
+    if (topicsSet.isEmpty || HIVE_TABLE.length == 0) {
+      println(usage)
     }
-    if (args(2).compareTo("--topics") == 0) {
-      topicsSet = args(3).split(",").toSet
-    }
-    else if (args(2).compareTo("--table") == 0) {
-      HIVE_TABLE = args(3)
-    }
+
     println("Consuming messages from topics: " + topicsSet.mkString(", "))
     println("Persisting messages in Hive table: " + HIVE_TABLE)
     val brokers = "localhost:9092" // not needed for MapR Streams, needed for Kafka
