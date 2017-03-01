@@ -61,7 +61,7 @@ object SparkStreamingToHive {
       println(usage)
     }
 
-    println("Consuming messages from topics: " + topicsSet.mkString(", "))
+    println("Consuming messages from topics:\n\t" + topicsSet.mkString("\n\t"))
     println("Persisting messages in Hive table: " + HIVE_TABLE)
     val brokers = "localhost:9092" // not needed for MapR Streams, needed for Kafka
     val groupId = "SparkStreamingToHive"
