@@ -46,6 +46,19 @@ public class Tick implements Serializable {
 		return timestamp.getTimeInMillis();
 	}
 
+	public String getTimeStamp() {
+		// NYSE TAQ records do not reference year, month, day. So, we'll hard code, for now.
+		String yyyy = "2013";
+		String MM = "12";
+		String dd = "01";
+
+		String HH = new String(data, 0, 2);
+		String mm = new String(data, 2, 2);
+		String ss = new String(data, 4, 2);
+
+		return yyyy+"-"+MM+"-"+dd+" "+HH+":"+mm+":"+ss;
+	}
+
 	@JsonProperty("exchange")
 	public String getExchange() {
 		return new String(data, 9, 1);

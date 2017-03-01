@@ -15,6 +15,7 @@ package com.mapr.demo.finserv
   * ****************************************************************************/
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.{ Seconds, StreamingContext }
@@ -27,7 +28,7 @@ object SparkStreamingToHive {
   // Verbose output switch
   var VERBOSE: Boolean = false
 
-  case class Tick(date: Long, exchange: String, symbol: String, price: Double, volume: Double, sender: String, receivers: Array[String]) extends Serializable
+  case class Tick(date: String, exchange: String, symbol: String, price: Double, volume: Double, sender: String, receivers: Array[String]) extends Serializable
 
   val usage = """
     Usage: spark-submit --class com.mapr.demo.finserv.SparkStreamingToHive nyse-taq-streaming-1.0-jar-with-dependencies.jar -topics <topic1>,<topic2>... -table <destination Hive table> [--verbose]
@@ -36,7 +37,7 @@ object SparkStreamingToHive {
   def parseTick(record: String): Tick = {
     val tick = new com.mapr.demo.finserv.Tick(record)
     val receivers: Array[String]  = (List(tick.getReceivers) map (_.toString)).toArray
-    Tick(tick.getTimeInMillis, tick.getExchange, tick.getSymbolRoot, tick.getTradePrice, tick.getTradeVolume, tick.getSender, receivers)
+    Tick(tick.getTimeStamp(), tick.getExchange, tick.getSymbolRoot, tick.getTradePrice, tick.getTradeVolume, tick.getSender, receivers)
   }
 
   def main(args: Array[String]): Unit = {
