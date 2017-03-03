@@ -104,7 +104,9 @@ public class Persister {
             System.out.println("creating table " + tableName);
             table = MapRDB.createTable(tableName);
             table.setOption(Table.TableOption.BUFFERWRITE, true);
-        }
+        } else {
+			table = MapRDB.getTable(tableName);
+		}
 
         if (table == null) {
 		    System.err.println("Error creating table " + tableName);
