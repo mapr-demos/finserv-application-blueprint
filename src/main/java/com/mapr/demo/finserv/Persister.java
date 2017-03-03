@@ -88,7 +88,7 @@ public class Persister {
 		configureConsumer(args);
 
 		long nmsgs = 0;
-		Table table;
+		Table table = null;
 
 		// subscribe to the raw data
 		System.out.println("subscribing to " + topics);
@@ -100,12 +100,16 @@ public class Persister {
 			MapRDB.deleteTable(tableName);
 		}
 
-		// make a new table
-		System.out.println("creating table " + tableName);
-		table = MapRDB.createTable(tableName);
+        if (!MapRDB.tableExists(tableName)) {
+            System.out.println("creating table " + tableName);
+            table = MapRDB.createTable(tableName);
+            table.setOption(Table.TableOption.BUFFERWRITE, true);
+        }
 
-		// probably want this
-		table.setOption(Table.TableOption.BUFFERWRITE, true);
+        if (table == null) {
+		    System.err.println("Error creating table " + tableName);
+            System.exit(1);
+        }
 
 		// request everything
 		System.out.println("working...");
