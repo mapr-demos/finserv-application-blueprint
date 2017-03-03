@@ -132,14 +132,14 @@ We'll explain two ways in which streaming data can be persisted into long-term s
 
 #### Persist stream data with MapR-DB
 
-The ```Persister.java``` class uses Spark SQL to persist JSON records from MapR Streams into MapR-DB.  It requires Spark 1.6. If you're using Spark 2.0 you won't see all the JSON columns in MapR-DB table.
+The ```Persister.java``` class uses Spark SQL to persist JSON records from MapR Streams into MapR-DB.
 
 This class can be run with the following command:
 
 ```
-java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister /user/mapr/taq:sender_0310
+java -cp `mapr classpath`:/home/mapr/finserv-application-blueprint/target/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister -topics /user/mapr/taq:sender_0310,/user/mapr/taq:sender_0410 -table /user/mapr/ticktable -droptable -verbose
 ```
-This creates a stream consumer that persists trades from sender ID ```0310``` to MapR-DB in a table located at /mapr/my.cluster.com/user/mapr/ticktable (note this is hard-coded in the class source code). That command will only see *new* messages in the trades topic because it tails the log, so when it says "No messages after 1 second wait", then run the following command to put more trade data into the stream. This command was described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
+This creates a stream consumer that persists trades from senders #0310 and #0410 to MapR-DB in a table located at /mapr/my.cluster.com/user/mapr/ticktable (which will be overwritten if it already exists, per the ```-droptable``` option). That command will only see *new* messages in the trades topic because it tails the log, so run the following command to put more trade data into the stream, as described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
 
 ```
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
