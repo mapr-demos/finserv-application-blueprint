@@ -2,15 +2,21 @@ BY USING THIS SOFTWARE, YOU EXPRESSLY ACCEPT AND AGREE TO THE TERMS OF THE AGREE
 
 #  An Example Application for Processing Stock Market Trade Data on the MapR Converged Data Platform
 
-This project provides a processing engine for ingesting real time streams of trades, bids and asks into MapR Streams at a high rate.  The application consists of the following components:
-- A Producer microservice that streams trades, bids and asks using the NYSE TAQ format.  The data source is the Daily Trades dataset described [here](http://www.nyxdata.com/Data-Products/Daily-TAQ). The schema for our data is detailed in Table 6, "Daily Trades File Data Fields", on page 26 of [Daily TAQ Client Specification (from December 1st, 2013)](http://www.nyxdata.com/doc/212759).  
+Stock exchanges offer real-time streams of information about the state of the market and trading activity. These data feeds channel a firehose of information that can be used to analyze market activity. However, these applications require a highly performant and reliable streaming infrastructure with accompanying services to process and store unbounded datasets. It can be challenging to build such infrastructures without incurring untenable operational expense and administrative burden.
+
+This demo application focuses on interactive market analysis with a graphical user interface in Apache Zeppelin, however our goal is to use this application to tell a larger story about how the MapR Converged Data Platform can be used to explore other stream processing use-cases, such as analyzing stock exchange data feeds for algorithmic trading or automated market surveillance. 
+
+The intent of the application is to serve as a "blueprint" for building high-speed streaming applications on the MapR Converged Data Platform.  You can use the code as a base for developing your own workflow, including producers, consumers and analytical engines, and run queries against the indexed topics.  
+
+## Overview
+
+This project provides an engine for processing real time streams trading data from stock exchanges. The application consists of the following components:
+- A Producer microservice that streams trades using the NYSE TAQ format.  The data source is the Daily Trades dataset described [here](http://www.nyxdata.com/Data-Products/Daily-TAQ). The schema for our data is detailed in Table 6, "Daily Trades File Data Fields", on page 26 of [Daily TAQ Client Specification (from December 1st, 2013)](http://www.nyxdata.com/doc/212759).  
 - A multi-threaded Consumer microservice that indexes the trades by receiver and sender.
 - Example Spark code for querying the indexed streams at interactive speeds, enabling Spark SQL queries.  
 - Example code for persisting the streaming data to MapR-DB 
 - Performance tests for benchmarking different configurations
 - A supplementary python script to enhance the above TAQ dataset with "level 2" bid and ask data at a user-defined rate.
-
-The intent of the application is to serve as a "blueprint" for building high-speed streaming applications on the MapR Converged Data Platform.  You can use the code as a base for developing your own workflow, including producers, consumers and analytical engines, and run queries against the indexed topics.  
 
 There are several beneficial aspects of the application that are worth highlighting:
 
@@ -205,7 +211,7 @@ Import the bank company names into a new hive table. Later, we'll map these name
 ```
 hive
   hive> CREATE TABLE banks(id int, name string) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
-  hive> LOAD DATA LOCAL INPATH '/home/mapr/finserv-application-blueprint/data/bank_list.csv' INTO TABLE banks;
+  hive> LOAD DATA LOCAL INPATH '/home/mapr/finserv-application-blueprint/resources/bank_list.csv' INTO TABLE banks;
 ```
 
 Run this command to load streaming data into a Hive table:
