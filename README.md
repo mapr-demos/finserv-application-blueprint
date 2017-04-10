@@ -4,7 +4,7 @@ BY USING THIS SOFTWARE, YOU EXPRESSLY ACCEPT AND AGREE TO THE TERMS OF THE AGREE
 
 Stock exchanges offer real-time streams of information about the state of the market and trading activity. These data feeds channel a firehose of information that can be used to analyze market activity. However, these applications require a highly performant and reliable streaming infrastructure with accompanying services to process and store unbounded datasets. It can be challenging to build such infrastructures without incurring untenable operational expense and administrative burden.
 
-This demo application focuses on interactive market analysis with a graphical user interface in Apache Zeppelin, however our goal is to use this application to tell a larger story about how the MapR Converged Data Platform can be used to explore other stream processing use-cases, such as analyzing stock exchange data feeds for algorithmic trading or automated market surveillance. 
+This demo application focuses on interactive market analysis with a graphical user interface in Apache Zeppelin, however our goal is to use this application to tell a larger story about how the MapR Converged Data Platform can be used to *cost effectively* explore other stream processing use-cases, such as analyzing stock exchange data feeds for algorithmic trading or automated market surveillance. 
 
 The intent of the application is to serve as a "blueprint" for building high-speed streaming applications on the MapR Converged Data Platform.  You can use the code as a base for developing your own workflow, including producers, consumers and analytical engines, and run queries against the indexed topics.  
 
