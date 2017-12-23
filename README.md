@@ -145,9 +145,9 @@ This class can be run with the following command:
 ```
 java -cp `mapr classpath`:/home/mapr/finserv-application-blueprint/target/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Persister -topics /user/mapr/taq:sender_0310,/user/mapr/taq:sender_0410 -table /user/mapr/ticktable -droptable -verbose
 ```
-This creates a stream consumer that persists trades from senders #0310 and #0410 to MapR-DB in a table located at /mapr/my.cluster.com/user/mapr/ticktable (which will be overwritten if it already exists, per the ```-droptable``` option). That command will only see *new* messages in the trades topic because it tails the log, so run the following command to put more trade data into the stream, as described in [step 4](https://github.com/mapr-demos/finserv-application-blueprint#step-4-run-the-producer). 
-
+This creates a stream consumer that persists trades from senders #0310 and #0410 to MapR-DB in a table located at /mapr/my.cluster.com/user/mapr/ticktable (which will be overwritten if it already exists, per the ```-droptable``` option). That command will only see *new* messages in the trades topic because it tails the log, so run the following command to put more trade data into the stream:
 ```
+java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar:/home/mapr/finserv-application-blueprint/src/test/resources com.mapr.demo.finserv.Run consumer /user/mapr/taq:trades 3 &
 java -cp `mapr classpath`:/home/mapr/nyse-taq-streaming-1.0.jar com.mapr.demo.finserv.Run producer /home/mapr/finserv-application-blueprint/data/ /user/mapr/taq:trades
 ```
 
