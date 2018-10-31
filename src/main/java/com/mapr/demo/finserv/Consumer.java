@@ -152,7 +152,7 @@ public class Consumer {
 					String key = Long.toString(Calendar.getInstance(TimeZone.getTimeZone("GMT")).getTimeInMillis());
 					byte[] data = raw_record.value();
 					String sender_id = new String(data, 71, 4);
-					String send_topic = "/user/mapr/taq:sender_" + sender_id;
+					String send_topic = topic.split(":")[0]+":sender_" + sender_id;
 
 					/* ENSURE TOPIC AFFINITY FOR EACH THREAD:
 					 * The topic hashcode works in the sense that equal topics always have equal hashes.
@@ -173,7 +173,7 @@ public class Consumer {
 					queues.get(qid).put(new ProducerRecord<>(send_topic, key, data));
 					for (int j = 0; (79 + j * 4) <= data.length; j++) {
 						String receiver_id = new String(data, 75 + j * 4, 4);
-						String recv_topic = "/user/mapr/taq:receiver_" + receiver_id;
+						String recv_topic = topic.split(":")[0]+":receiver_" + receiver_id;
 						qid = recv_topic.hashCode() % threadCount;
 						if (qid < 0) {
 							qid += threadCount;

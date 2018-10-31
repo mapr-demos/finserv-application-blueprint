@@ -58,7 +58,7 @@ public class Persister {
 	public static void main(String[] args) throws IOException {
 		List<String> topics = new ArrayList<String>();
 
-		for (int i = 0; i < args.length; ++i) {
+		for (int i = 0; i < args.length; i++) {
 			if (args[i].equals("-table")) {
 				i++;
 				if (i >= args.length) usage();
@@ -68,10 +68,8 @@ public class Persister {
 				if (i >= args.length) usage();
 				topics = Arrays.asList(args[i].split(","));
 			} else if (args[i].equals("-droptable")) {
-				i++;
 				DROPTABLE = true;
 			} else if (args[i].equals("-verbose")) {
-				i++;
 				VERBOSE = true;
 			}
 		}
