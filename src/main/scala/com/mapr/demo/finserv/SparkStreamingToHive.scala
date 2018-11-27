@@ -68,8 +68,13 @@ object SparkStreamingToHive {
     val groupId = "SparkStreamingToHive"
     val batchInterval = "2"
     val pollTimeout = "10000"
-    val sparkConf = new SparkConf().setAppName("TickStream")
-    val ssc = new StreamingContext(sparkConf, Seconds(batchInterval.toInt))
+    val spark = SparkSession
+      .builder()
+      .appName("TickStream")
+      .config("spark.sql.warehouse.dir", "/user/hive/warehouse")
+      .enableHiveSupport()
+      .getOrCreate()
+    val ssc = new StreamingContext(spark.sparkContext, Seconds(batchInterval.toInt))
     val kafkaParams = Map[String, String](
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> brokers,
       ConsumerConfig.GROUP_ID_CONFIG -> groupId,
@@ -91,12 +96,6 @@ object SparkStreamingToHive {
       if (!rdd.isEmpty) {
         val count = rdd.count
         println("consumed " + count + " records")
-        val spark = SparkSession
-          .builder()
-          .appName("SparkSessionTicks")
-          .config(rdd.sparkContext.getConf)
-          .enableHiveSupport()
-          .getOrCreate()
         import spark.implicits._
         val df = rdd.map(parseTick).toDF()
         if (VERBOSE) {
